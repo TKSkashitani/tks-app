@@ -19,6 +19,7 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
 .btn-outline{padding:10px 22px;background:#fff;color:#1A1A1A;border:2px solid #1A1A1A;border-radius:7px;font-size:13px;cursor:pointer;font-weight:700;font-family:inherit}
 .btn-gray{padding:10px 22px;background:#fff;color:#666;border:2px solid #CCC;border-radius:7px;font-size:13px;cursor:pointer;font-weight:600;font-family:inherit}
 .btn-primary{padding:10px 28px;background:#E8000D;color:#fff;border:none;border-radius:7px;font-size:13px;cursor:pointer;font-weight:700;font-family:inherit;box-shadow:0 4px 12px rgba(232,0,13,.3)}
+.btn-register{padding:10px 22px;background:#1a7a4a;color:#fff;border:none;border-radius:7px;font-size:13px;cursor:pointer;font-weight:700;font-family:inherit;box-shadow:0 4px 12px rgba(26,122,74,.3)}
 .row-tr:hover td{background:#F5F5F5!important}
 .del-btn{opacity:0;transition:opacity .15s;background:none;border:none;color:#E8000D;cursor:pointer;font-size:18px}
 .row-tr:hover .del-btn{opacity:1}
@@ -150,6 +151,7 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
   <!-- ボタン -->
   <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap" class="no-print">
     <button class="btn-outline" onclick="exportCSV()">📊 CSV出力</button>
+    <button class="btn-register" onclick="registerToSheet()">📤 スプレッドシートに登録</button>
     <button class="btn-gray" onclick="togglePreview()">👁 プレビュー</button>
     <button class="btn-primary" onclick="doPrint()">🖨 印刷 / PDF保存</button>
   </div>
@@ -461,6 +463,81 @@ function doPrint(){
     w.document.close();setTimeout(()=>{w.focus();w.print();w.close();},600);
   },showPreview?0:300);
 }
+
+// ── スプレッドシート登録 ──────────────────────────
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyRSen3pK80hsAIyBJPCu_EGq8T7TBRK1MCD3wJXl5wpn5QHELGjZxpdoombSiOxfSozA/exec";
+
+async function registerToSheet(){
+  const rows = getRows();
+  const no   = document.getElementById('docNo').value;
+  const date = document.getElementById('docDate').value;
+  const date3= document.getElementById('date3').value;
+  const staff= document.getElementById('field4').value;
+  const payment = document.getElementById('payment').value;
+  const cName= document.getElementById('cName').value;
+  const cDept= document.getElementById('cDept').value;
+  const cAddr= document.getElementById('cAddr').value;
+  const docTitle = document.getElementById('docTitle').value;
+  const remarks  = document.getElementById('remarks').value;
+  const rate = Number(document.getElementById('taxRate').value);
+  const sub  = rows.reduce((s,r)=>s+r.qty*r.price,0);
+  const tax  = Math.floor(sub*(rate/100));
+  const total= sub+tax;
+
+  if(!cName.trim()){ showToast('取引先名を入力してください'); return; }
+  if(!no.trim())   { showToast('書類番号を入力してください'); return; }
+  if(rows.every(r=>!r.name.trim())){ showToast('明細を1行以上入力してください'); return; }
+
+  const payload = {
+    docType:  tab,
+    docNo:    no,
+    docDate:  fmtDate(date),
+    expireOrDeliver: tab==='見積書' ? fmtDate(date3) : '',
+    deliverDate:     tab!=='見積書' ? fmtDate(date3) : '',
+    paymentTerms:    tab==='請求書' ? payment : '',
+    cName, cDept, cAddr,
+    docTitle, remarks, staff,
+    subtotal: sub,
+    taxRate:  rate,
+    tax,
+    total,
+    items: rows.map(r=>({
+      name:  r.name,
+      spec:  r.spec,
+      qty:   r.qty,
+      unit:  r.unit,
+      price: r.price,
+      amount:r.qty*r.price,
+      note:  r.note
+    }))
+  };
+
+  // ボタンをローディング状態に
+  const btn = document.querySelector('.btn-register');
+  const orig = btn.textContent;
+  btn.textContent = '登録中...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if(json.status === 'ok'){
+      showToast('スプレッドシートに登録しました ✓');
+    } else {
+      showToast('エラー：' + (json.message || '不明なエラー'));
+    }
+  } catch(e) {
+    showToast('通信エラー：' + e.message);
+  } finally {
+    btn.textContent = orig;
+    btn.disabled = false;
+  }
+}
+// ────────────────────────────────────────────────
 
 init();
 </script>
