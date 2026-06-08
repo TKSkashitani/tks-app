@@ -447,6 +447,7 @@ function renderPreview(){
         </div>
       </div>
       ${remarks?`<div style="border-left:3px solid ${R};border-radius:0 4px 4px 0;padding:8px 12px;background:${R}0d;margin-bottom:12px"><div style="font-size:8px;font-weight:700;color:${R};letter-spacing:.1em;margin-bottom:4px">備　考</div><div style="font-size:10px;color:#555;line-height:1.8">${remarks}</div></div>`:''}
+      ${tab==='請求書'?`<div style="border-left:3px solid #1A1A1A;border-radius:0 4px 4px 0;padding:10px 14px;background:#f9f9f9;margin-bottom:12px"><div style="font-size:8px;font-weight:700;color:#1A1A1A;letter-spacing:.1em;margin-bottom:6px">振　込　先</div><div style="font-size:10px;color:#333;line-height:2">大阪シティ信用金庫　長吉支店<br>普通　1041866<br>株式会社トータルキッチンシステム</div></div>`:''}
       <div style="margin-top:24px;padding-top:10px;border-top:1px solid #efefef;display:flex;justify-content:flex-end">
         <div style="font-size:8px;color:#ccc">${CO.name}　${CO.tel}</div>
       </div>
