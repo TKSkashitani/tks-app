@@ -68,7 +68,13 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
   <!-- 書類情報 -->
   <div class="card">
     <div class="grid4">
-      <div><div class="fld-label">書類番号</div><input class="inp" id="docNo"></div>
+      <div>
+        <div class="fld-label">書類番号</div>
+        <div style="display:flex;gap:6px">
+          <input class="inp" id="docNo" style="flex:1">
+          <button onclick="recallDoc()" style="padding:8px 12px;background:#1A1A1A;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:700;font-family:inherit;white-space:nowrap">📂 呼び出し</button>
+        </div>
+      </div>
       <div><div class="fld-label">発行日</div><input class="inp" type="date" id="docDate"></div>
       <div id="date3-wrap"><div class="fld-label" id="date3-label">有効期限</div><input class="inp" type="date" id="date3"></div>
       <div id="field4-wrap"><div class="fld-label" id="field4-label">担当者名</div><input class="inp" id="field4" placeholder="山田 太郎"></div>
@@ -237,6 +243,95 @@ function init(){
 }
 
 function sortC(arr){return[...arr].sort((a,b)=>(a.name+a.dept).localeCompare(b.name+b.dept,'ja'));}
+
+// 書類呼び出し
+async function recallDoc(){
+  const docNo = document.getElementById('docNo').value.trim();
+  if(!docNo){ showToast('書類番号を入力してください'); return; }
+
+  const btn = document.querySelector('[onclick="recallDoc()"]');
+  btn.textContent = '検索中...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'search', docNo: docNo })
+    });
+    const data = await res.json();
+
+    if(data.status === 'notfound'){
+      showToast('書類番号「' + docNo + '」が見つかりません');
+      return;
+    }
+
+    const d = data.doc;
+
+    // タブ切替
+    switchTab(d.docType || tab);
+
+    // 書類情報をセット
+    document.getElementById('docNo').value   = d.docNo    || '';
+    document.getElementById('docDate').value = dateToInput(d.docDate);
+    document.getElementById('field4').value  = d.staff    || '';
+
+    // 支払条件
+    if(d.docType === '請求書'){
+      document.getElementById('payment-wrap').style.display = 'block';
+      document.getElementById('payment').value     = d.payment    || '納品後30日以内';
+      document.getElementById('paymentDue').value  = dateToInput(d.paymentDue);
+      document.getElementById('payment-custom-wrap').style.display = 'none';
+    }
+
+    // 宛先
+    document.getElementById('cName').value    = d.cName    || '';
+    document.getElementById('cDept').value    = d.cDept    || '';
+    document.getElementById('cAddr').value    = d.cAddr    || '';
+    document.getElementById('docTitle').value = d.docTitle || '';
+    document.getElementById('remarks').value  = d.remarks  || '';
+
+    // 消費税率
+    document.getElementById('taxRate').value = d.taxRate || 10;
+
+    // 明細をクリアして再構築
+    document.getElementById('itemBody').innerHTML = '';
+    rowId = 0;
+    const items = data.items || [];
+    if(items.length === 0){
+      addRow();
+    } else {
+      items.forEach(item => {
+        addRow();
+        const id = rowId;
+        document.querySelector('[data-id="'+id+'"][data-field="name"]').value  = item.name  || '';
+        document.querySelector('[data-id="'+id+'"][data-field="spec"]').value  = item.spec  || '';
+        document.querySelector('[data-id="'+id+'"][data-field="qty"]').value   = item.qty   || 1;
+        document.querySelector('[data-id="'+id+'"][data-field="unit"]').value  = item.unit  || '台';
+        document.querySelector('[data-id="'+id+'"][data-field="price"]').value = item.price || 0;
+        document.querySelector('[data-id="'+id+'"][data-field="note"]').value  = item.note  || '';
+      });
+    }
+
+    calc();
+    showToast('「' + docNo + '」を呼び出しました ✓');
+
+  } catch(e) {
+    showToast('通信エラー：' + e.message);
+  } finally {
+    btn.textContent = '📂 呼び出し';
+    btn.disabled = false;
+  }
+}
+
+// 日本語日付 → input[type=date]用に変換
+function dateToInput(str){
+  if(!str) return '';
+  // 「2026年6月8日」→「2026-06-08」
+  const m = str.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+  if(m) return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+  return '';
+}
 
 // 支払期限自動計算
 function updatePaymentDate(){
