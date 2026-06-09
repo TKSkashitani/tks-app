@@ -613,9 +613,11 @@ function doPrint(){
   setTimeout(function(){
     var content = document.getElementById('preview-content').innerHTML;
     var w = window.open('','_blank','width=900,height=1200');
+    var docTitle = document.getElementById('docTitle').value.trim();
+    var printTitle = docTitle ? docTitle + '_' + tab : tab;
     var html = '<!DOCTYPE html><html lang="ja"><head>'
       + '<meta charset="UTF-8">'
-      + '<title>' + tab + '</title>'
+      + '<title>' + printTitle + '</title>'
       + '<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">'
       + '<style>'
       + '@page{size:A4 portrait;margin:0}'
