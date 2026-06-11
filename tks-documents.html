@@ -132,6 +132,7 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
       <table style="width:100%;border-collapse:collapse;font-size:12px" id="itemTable">
         <thead>
           <tr style="background:#1A1A1A;color:#fff">
+            <th style="padding:8px;text-align:left;font-size:11px;width:110px">日付</th>
             <th style="padding:8px;text-align:left;font-size:11px">品名・型番</th>
             <th style="padding:8px;text-align:left;font-size:11px">仕様</th>
             <th style="padding:8px;text-align:center;font-size:11px;width:62px">数量</th>
@@ -304,6 +305,8 @@ async function recallDoc(){
       items.forEach(item => {
         addRow();
         const id = rowId;
+        const wdEl = document.querySelector('[data-id="'+id+'"][data-field="workdate"]');
+        if(wdEl && item.workdate) wdEl.value = item.workdate;
         document.querySelector('[data-id="'+id+'"][data-field="name"]').value  = item.name  || '';
         document.querySelector('[data-id="'+id+'"][data-field="spec"]').value  = item.spec  || '';
         document.querySelector('[data-id="'+id+'"][data-field="qty"]').value   = item.qty   || 1;
@@ -383,6 +386,7 @@ function addRow(){
   tr.id='row-'+id;
   tr.style.borderBottom='1px solid #E8E8E8';
   tr.innerHTML=`
+    <td style="padding:5px 4px;width:110px"><input class="inp" type="date" style="padding:5px 4px;font-size:12px" data-field="workdate" data-id="${id}"></td>
     <td style="padding:5px 4px;min-width:160px"><input class="inp" style="padding:5px 7px;font-size:12px" placeholder="品名" oninput="calc()" data-field="name" data-id="${id}"></td>
     <td style="padding:5px 4px;min-width:100px"><input class="inp" style="padding:5px 7px;font-size:12px" placeholder="仕様" data-field="spec" data-id="${id}"></td>
     <td style="padding:5px 4px"><input class="inp" style="padding:5px 4px;font-size:12px;text-align:center" type="number" value="1" oninput="calc()" data-field="qty" data-id="${id}"></td>
@@ -408,7 +412,7 @@ function getRows(){
   document.querySelectorAll('#itemBody tr').forEach(tr=>{
     const id=tr.id.replace('row-','');
     const get=f=>tr.querySelector('[data-field="'+f+'"]')?.value||'';
-    rows.push({id,name:get('name'),spec:get('spec'),qty:Number(get('qty')||0),unit:get('unit')||'台',price:Number(get('price')||0),note:get('note')});
+    rows.push({id,workdate:get('workdate'),name:get('name'),spec:get('spec'),qty:Number(get('qty')||0),unit:get('unit')||'台',price:Number(get('price')||0),note:get('note')});
   });
   return rows;
 }
@@ -539,6 +543,7 @@ function renderPreview(){
   const emptyRows=Math.max(0,7-rows.length);
   const itemRows=rows.map((r,i)=>`
     <tr style="background:${i%2===0?'#fff':'#fafafa'};border-bottom:1px solid #efefef">
+      <td style="padding:5px 9px;color:#888;font-size:9px">${r.workdate?fmtDate(r.workdate):''}</td>
       <td style="padding:5px 9px;font-weight:500;font-size:10px">${r.name}</td>
       <td style="padding:5px 9px;color:#777;font-size:9.5px">${r.spec}</td>
       <td style="padding:5px 9px;text-align:center;font-size:10px">${r.qty}</td>
@@ -585,7 +590,7 @@ function renderPreview(){
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:8px">
         <thead><tr>
-          ${[{h:'品名・型番',w:'auto'},{h:'仕様',w:'90px'},{h:'数量',w:'44px'},{h:'単位',w:'44px'},{h:'単価',w:'80px'},{h:'金額',w:'88px'},{h:'備考',w:'70px'}].map(({h,w},i)=>`<th style="padding:8px 9px;text-align:${i>=2&&i<=5?'center':'left'};font-size:8.5px;font-weight:700;color:#fff;letter-spacing:.06em;background:${i===0?R:'#2a2a2a'};width:${w};border-right:${i<6?'1px solid rgba(255,255,255,.12)':'none'};white-space:nowrap">${h}</th>`).join('')}
+          ${[{h:'日付',w:'72px'},{h:'品名・型番',w:'auto'},{h:'仕様',w:'80px'},{h:'数量',w:'44px'},{h:'単位',w:'44px'},{h:'単価',w:'80px'},{h:'金額',w:'88px'},{h:'備考',w:'70px'}].map(({h,w},i)=>`<th style="padding:8px 9px;text-align:${i>=2&&i<=5?'center':'left'};font-size:8.5px;font-weight:700;color:#fff;letter-spacing:.06em;background:${i===0?R:'#2a2a2a'};width:${w};border-right:${i<6?'1px solid rgba(255,255,255,.12)':'none'};white-space:nowrap">${h}</th>`).join('')}
         </tr></thead>
         <tbody>${itemRows}${emptyRowsHtml}</tbody>
       </table>
@@ -708,7 +713,7 @@ function buildPayload(docType, docNo){
     taxRate:  rate,
     tax,
     total,
-    items: rows.map(r=>({name:r.name,spec:r.spec,qty:r.qty,unit:r.unit,price:r.price,amount:r.qty*r.price,note:r.note}))
+    items: rows.map(r=>({workdate:r.workdate,name:r.name,spec:r.spec,qty:r.qty,unit:r.unit,price:r.price,amount:r.qty*r.price,note:r.note}))
   };
 }
 
