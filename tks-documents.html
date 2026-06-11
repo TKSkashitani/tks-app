@@ -185,9 +185,9 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
   <!-- ボタン -->
   <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap" class="no-print">
     <button class="btn-outline" onclick="exportCSV()">📊 CSV出力</button>
-    <button class="btn-register" onclick="registerToSheet()">📤 スプレッドシートに登録</button>
     <button class="btn-gray" onclick="togglePreview()">👁 プレビュー</button>
     <button class="btn-primary" onclick="doPrint()">🖨 印刷 / PDF保存</button>
+    <button class="btn-register" onclick="registerAllAndReset()" style="padding:10px 22px;background:#1a7a4a;color:#fff;border:none;border-radius:7px;font-size:13px;cursor:pointer;font-weight:700;font-family:inherit">📤 3書類登録して新規作成</button>
   </div>
 
   <!-- プレビュー -->
@@ -225,7 +225,7 @@ let rowId=0;
 function fmtDate(s){if(!s)return'';const[y,m,d]=s.split('-');return y+'年'+Number(m)+'月'+Number(d)+'日';}
 function fmtNum(n){return Number(n||0).toLocaleString('ja-JP');}
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function genNo(t){const d=new Date();return PREFIXES[t]+'-'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'-001';}
+function genNo(t){const d=new Date();return 'TKS-'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'-001';}
 
 // 初期化
 function init(){
@@ -362,7 +362,7 @@ function switchTab(t){
   tab=t;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
-  document.getElementById('docNo').value=genNo(t);
+  // 書類番号はタブ切替でリセットしない（TKS共通番号）
   // date3
   const d3l=document.getElementById('date3-label');
   const pw=document.getElementById('payment-wrap');
@@ -635,6 +635,110 @@ function doPrint(){
       w.close();
     }, 900);
   }, showPreview?100:400);
+}
+
+// ── 3書類一括登録して新規作成 ──────────────────────
+async function registerAllAndReset(){
+  const no    = document.getElementById('docNo').value.trim();
+  const cName = document.getElementById('cName').value.trim();
+  if(!cName){ showToast('取引先名を入力してください'); return; }
+  if(!no)   { showToast('書類番号を入力してください'); return; }
+  if(getRows().every(r=>!r.name.trim())){ showToast('明細を1行以上入力してください'); return; }
+
+  const btn = document.querySelector('[onclick="registerAllAndReset()"]');
+  btn.textContent = '登録中...';
+  btn.disabled = true;
+
+  const types = ['見積書','納品書','請求書'];
+  let successCount = 0;
+  let errorMsg = '';
+
+  for(const docType of types){
+    try{
+      const payload = buildPayload(docType, no);
+      const res = await fetch(WEBAPP_URL,{
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if(json.status === 'ok') successCount++;
+      else errorMsg = json.message || 'エラー';
+    } catch(e){
+      errorMsg = e.message;
+    }
+  }
+
+  btn.textContent = '📤 3書類登録して新規作成';
+  btn.disabled = false;
+
+  if(successCount === 3){
+    showToast('3書類をスプレッドシートに登録しました ✓');
+    setTimeout(resetForm, 1500);
+  } else {
+    showToast('一部登録失敗：' + errorMsg);
+  }
+}
+
+function buildPayload(docType, docNo){
+  const rows = getRows();
+  const date3 = document.getElementById('date3').value;
+  const staff = document.getElementById('field4').value;
+  const payment = typeof getPaymentText==='function' ? getPaymentText() : document.getElementById('payment').value;
+  const paymentDue = document.getElementById('paymentDue') ? document.getElementById('paymentDue').value : '';
+  const sub = rows.reduce((s,r)=>s+r.qty*r.price,0);
+  const rate = Number(document.getElementById('taxRate').value);
+  const tax = Math.floor(sub*(rate/100));
+  const total = sub+tax;
+  return {
+    docType,
+    docNo,
+    docDate:   fmtDate(document.getElementById('docDate').value),
+    expireDate: docType==='見積書' ? fmtDate(date3) : '',
+    deliverDate: docType!=='見積書' ? fmtDate(date3) : '',
+    paymentTerms: docType==='請求書' ? payment : '',
+    paymentDue:   docType==='請求書' ? fmtDate(paymentDue) : '',
+    cName:    document.getElementById('cName').value,
+    cDept:    document.getElementById('cDept').value,
+    cAddr:    document.getElementById('cAddr').value,
+    docTitle: document.getElementById('docTitle').value,
+    remarks:  document.getElementById('remarks').value,
+    staff,
+    subtotal: sub,
+    taxRate:  rate,
+    tax,
+    total,
+    items: rows.map(r=>({name:r.name,spec:r.spec,qty:r.qty,unit:r.unit,price:r.price,amount:r.qty*r.price,note:r.note}))
+  };
+}
+
+function resetForm(){
+  // 書類番号を翌番に更新
+  const d = new Date();
+  const base = 'TKS-'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'-';
+  const cur = document.getElementById('docNo').value;
+  let nextNo = base+'001';
+  if(cur.startsWith(base)){
+    const seq = parseInt(cur.replace(base,''),10);
+    if(!isNaN(seq)) nextNo = base+String(seq+1).padStart(3,'0');
+  }
+  document.getElementById('docNo').value = nextNo;
+
+  // 宛先・件名・備考をクリア
+  ['cName','cDept','cAddr','docTitle','remarks'].forEach(id=>{
+    document.getElementById(id).value='';
+  });
+
+  // 明細をリセット
+  document.getElementById('itemBody').innerHTML='';
+  rowId=0;
+  addRow();
+
+  // プレビューを閉じる
+  if(showPreview){ togglePreview(); }
+
+  // タブを見積書に戻す
+  switchTab('見積書');
 }
 
 // ── スプレッドシート登録 ──────────────────────────
