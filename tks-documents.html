@@ -28,21 +28,21 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
 .tab-btn{padding:7px 20px;border-radius:6px;border:2px solid #CCC;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;background:#fff;color:#666;transition:all .15s}
 .tab-btn.active{background:#E8000D;color:#fff;border-color:#E8000D}
 #toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#1A1A1A;color:#fff;padding:10px 28px;border-radius:30px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:9999;display:none;white-space:nowrap}
-.preview-wrap{margin-top:24px;background:#fff;border-radius:10px;box-shadow:0 2px 16px rgba(0,0,0,.1);display:none}
+.preview-wrap{margin-top:24px;background:#fff;border-radius:10px;box-shadow:0 2px 16px rgba(0,0,0,.1);display:block}
 .preview-bar{padding:10px 24px;background:#EDEDED;border-radius:10px 10px 0 0;font-size:12px;color:#888}
 @media print{
   @page{size:A4 portrait;margin:0}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
-  html,body{height:auto!important;overflow:hidden!important;background:#fff}
+  html{overflow:hidden!important}
+  body{height:297mm!important;max-height:297mm!important;overflow:hidden!important;background:#fff!important}
   .no-print{display:none!important}
   header{display:none!important}
   .card{display:none!important}
-  .preview-wrap{display:block!important;margin:0!important;box-shadow:none!important;border-radius:0!important;page-break-after:avoid!important}
+  .preview-wrap{display:block!important;margin:0!important;box-shadow:none!important;border-radius:0!important;height:297mm!important;max-height:297mm!important;overflow:hidden!important}
   .preview-bar{display:none!important}
-  #preview-content{padding:14mm 14mm 10mm!important;display:block!important;page-break-after:avoid!important;break-after:avoid!important}
-  #previewWrap{display:block!important;page-break-after:avoid!important}
+  #preview-content{padding:14mm 14mm 10mm!important;display:block!important;height:297mm!important;max-height:297mm!important;overflow:hidden!important;box-sizing:border-box!important}
+  #previewWrap{display:block!important;height:297mm!important;max-height:297mm!important;overflow:hidden!important}
   #toast{display:none!important}
-  div{page-break-inside:avoid}
 }
 </style>
 </head>
@@ -108,9 +108,11 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <span style="font-size:13px;font-weight:700;color:#1A1A1A">宛先・件名</span>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="tab-btn" onclick="toggleClientList()" id="cl-btn" style="padding:5px 14px;font-size:12px;border-color:#CCC">📋 取引先を選択</button>
         <button class="btn-red" onclick="saveClient()">💾 保存</button>
+        <button class="tab-btn" onclick="exportClients()" style="padding:5px 14px;font-size:12px;border-color:#CCC">📥 エクスポート</button>
+        <label style="padding:5px 14px;background:#fff;color:#1A1A1A;border:2px solid #CCC;border-radius:6px;font-size:12px;cursor:pointer;font-weight:700;font-family:inherit">📤 インポート<input type="file" accept=".json" onchange="importClients(event)" style="display:none"></label>
       </div>
     </div>
     <div id="client-list" style="display:none;background:#fff;border:1.5px solid #E8E8E8;border-radius:8px;margin-bottom:14px;box-shadow:0 4px 16px rgba(0,0,0,.1);overflow:hidden;max-height:300px;overflow-y:auto"></div>
@@ -170,25 +172,18 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
     <textarea class="inp" id="remarks" rows="3" placeholder="特記事項・補足など" style="resize:vertical;margin-top:4px"></textarea>
   </div>
 
-  <!-- スプレッドシート連携ガイド -->
-  <div class="card no-print">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-      <div style="width:4px;height:22px;background:#E8000D;border-radius:2px"></div>
-      <span style="font-size:13px;font-weight:700">Googleスプレッドシート連携ガイド</span>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
-      <div style="background:#EDEDED;border-radius:8px;padding:14px 16px"><div style="font-size:13px;font-weight:700;color:#E8000D;margin-bottom:6px">① CSV出力</div><p style="font-size:11px;color:#666;line-height:1.7">「CSV出力」ボタンで書類種別・取引先・明細・金額が一覧形式でダウンロードされます。</p></div>
-      <div style="background:#EDEDED;border-radius:8px;padding:14px 16px"><div style="font-size:13px;font-weight:700;color:#E8000D;margin-bottom:6px">② スプレッドシートに取込み</div><p style="font-size:11px;color:#666;line-height:1.7">GoogleスプレッドシートでCSVをインポート。GASを使えば自動取込みも可能です。</p></div>
-      <div style="background:#EDEDED;border-radius:8px;padding:14px 16px"><div style="font-size:13px;font-weight:700;color:#E8000D;margin-bottom:6px">③ 月次集計</div><p style="font-size:11px;color:#666;line-height:1.7">SUMIF・ピボットテーブルで拠点別・月別の売上・件数を自動集計できます。</p></div>
-    </div>
-  </div>
+
 
   <!-- ボタン -->
-  <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap" class="no-print">
-    <button class="btn-outline" onclick="exportCSV()">📊 CSV出力</button>
-    <button class="btn-gray" onclick="togglePreview()">👁 プレビュー</button>
-    <button class="btn-primary" onclick="doPrint()">🖨 印刷 / PDF保存</button>
-    <button class="btn-register" onclick="registerAllAndReset()" style="padding:10px 22px;background:#1a7a4a;color:#fff;border:none;border-radius:7px;font-size:13px;cursor:pointer;font-weight:700;font-family:inherit">📤 3書類登録して新規作成</button>
+  <div class="no-print" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:0">
+    <label id="register-check-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#1a7a4a;background:#f0faf4;border:2px solid #1a7a4a;border-radius:8px;padding:8px 16px;user-select:none">
+      <input type="checkbox" id="doRegister" checked onchange="onRegisterCheckChange()" style="width:18px;height:18px;cursor:pointer;accent-color:#1a7a4a">
+      スプレッドシートに登録する
+    </label>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button onclick="newDocWithCheck()" style="padding:10px 22px;background:#fff;color:#1A1A1A;border:2px solid #1A1A1A;border-radius:7px;font-size:13px;cursor:pointer;font-weight:700;font-family:inherit">🆕 新規作成</button>
+      <button class="btn-primary" onclick="doPrint()">🖨 印刷 / PDF保存</button>
+    </div>
   </div>
 
   <!-- プレビュー -->
@@ -212,6 +207,7 @@ const DEFAULT_CLIENTS=[
   {id:4,name:'㈱フジマック',dept:'京都営業所',addr:'〒612-8419 京都府京都市伏見区竹田北三ツ杭町36番地'},
   {id:5,name:'（社）任天会',dept:'',addr:''},
   {id:6,name:'（株）ヒカリエ',dept:'',addr:'〒518-0623 三重県名張市桔梗が丘3-2-18'},
+  {id:9,name:'(有)サカエエンジニアリング',dept:'',addr:'大阪市淀川区加島2丁目2-50'},
   {id:7,name:'㈱フジマック',dept:'神戸営業所',addr:'〒652-0863 兵庫県神戸市兵庫区和田宮通3丁目3番17号'},
   {id:8,name:'㈱フジマック',dept:'姫路営業所',addr:'〒672-8046 兵庫県姫路市飾磨区都倉1番地41号'},
 ];
@@ -219,7 +215,7 @@ const DEFAULT_CLIENTS=[
 let tab='見積書';
 let clients=[];
 let showCL=false;
-let showPreview=false;
+let showPreview=true;
 let rowId=0;
 
 // 日付フォーマット
@@ -244,6 +240,85 @@ function init(){
 }
 
 function sortC(arr){return[...arr].sort((a,b)=>(a.name+a.dept).localeCompare(b.name+b.dept,'ja'));}
+
+// チェックボックス変更時
+function onRegisterCheckChange(){
+  const checked = document.getElementById('doRegister').checked;
+  const label = document.getElementById('register-check-label');
+  if(checked){
+    label.style.color='#1a7a4a';
+    label.style.borderColor='#1a7a4a';
+    label.style.background='#f0faf4';
+  } else {
+    const ok = confirm('スプレッドシートに登録しません。\nチェックを外してもよいですか？');
+    if(!ok){
+      document.getElementById('doRegister').checked = true;
+      return;
+    }
+    label.style.color='#999';
+    label.style.borderColor='#CCC';
+    label.style.background='#f5f5f5';
+  }
+}
+
+// 登録済みフラグ
+var isRegistered = false;
+
+// 新規作成（チェック状態で登録 or リセット）
+function newDocWithCheck(){
+  const checked = document.getElementById('doRegister').checked;
+  const hasContent = document.getElementById('cName').value.trim() ||
+                     getRows().some(r=>r.name.trim());
+  if(checked && hasContent){
+    // チェックON → 登録してリセット
+    registerAllAndReset();
+  } else if(!checked && hasContent && !isRegistered){
+    // チェックOFF・未登録 → 確認
+    if(!confirm('スプレッドシートに登録しません。\n新規作成してもよいですか？')){
+      return;
+    }
+    isRegistered = false;
+    resetForm();
+  } else {
+    isRegistered = false;
+    resetForm();
+  }
+}
+
+// 取引先エクスポート・インポート
+function exportClients(){
+  if(clients.length === 0){ showToast('保存済みの取引先がありません'); return; }
+  const json = JSON.stringify(clients, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tks-clients.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('取引先データをエクスポートしました ✓');
+}
+
+function importClients(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = JSON.parse(e.target.result);
+      if(!Array.isArray(data)) throw new Error('形式が正しくありません');
+      // 既存と重複しないものだけ追加
+      const existKeys = clients.map(c=>c.name+c.dept);
+      const newOnes = data.filter(d=>!existKeys.includes(d.name+d.dept));
+      clients = sortC([...clients, ...newOnes]);
+      try{ localStorage.setItem('tks_clients', JSON.stringify(clients)); }catch(e){}
+      showToast(newOnes.length + '件の取引先をインポートしました ✓');
+    } catch(err) {
+      showToast('インポート失敗：' + err.message);
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
 
 // 書類呼び出し
 async function recallDoc(){
@@ -614,32 +689,8 @@ function renderPreview(){
 
 // 印刷
 function doPrint(){
-  if(!showPreview){ togglePreview(); }
-  setTimeout(function(){
-    var content = document.getElementById('preview-content').innerHTML;
-    var docTitleVal = document.getElementById('docTitle').value.trim();
-    var printTitle = docTitleVal ? docTitleVal + '_' + tab : tab;
-    var w = window.open('','_blank','width=900,height=1200');
-    w.document.write('<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">');
-    w.document.write('<title>' + printTitle + '</title>');
-    w.document.write('<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">');
-    w.document.write('<style>');
-    w.document.write('@page{size:A4 portrait;margin:0}');
-    w.document.write('*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}');
-    w.document.write('html,body{width:210mm;height:297mm;overflow:hidden;font-family:"Noto Sans JP",sans-serif;color:#1a1a1a;background:#fff;margin:0;padding:0}');
-    w.document.write('.pw{width:210mm;height:297mm;padding:14mm 14mm 10mm;overflow:hidden;box-sizing:border-box}');
-    w.document.write('table{border-collapse:collapse;width:100%}img{max-width:100%}');
-    w.document.write('</style></head><body>');
-    w.document.write('<div class="pw">' + content + '</div>');
-    w.document.write('</body></html>');
-    w.document.close();
-    setTimeout(function(){
-      w.document.title = printTitle;
-      w.focus();
-      w.print();
-      w.close();
-    }, 900);
-  }, showPreview?100:400);
+  if(!showPreview){ renderPreview(); }
+  setTimeout(function(){ window.print(); }, 300);
 }
 
 // ── 3書類一括登録して新規作成 ──────────────────────
@@ -679,6 +730,7 @@ async function registerAllAndReset(){
 
   if(successCount === 3){
     showToast('3書類をスプレッドシートに登録しました ✓');
+    isRegistered = true;
     setTimeout(resetForm, 1500);
   } else {
     showToast('一部登録失敗：' + errorMsg);
@@ -744,6 +796,7 @@ function resetForm(){
 
   // タブを見積書に戻す
   switchTab('見積書');
+  isRegistered = false;
 }
 
 // ── スプレッドシート登録 ──────────────────────────
