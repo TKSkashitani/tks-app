@@ -33,16 +33,8 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
 @media print{
   @page{size:A4 portrait;margin:0}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
-  html{overflow:hidden!important}
-  body{height:297mm!important;max-height:297mm!important;overflow:hidden!important;background:#fff!important}
-  .no-print{display:none!important}
-  header{display:none!important}
-  .card{display:none!important}
-  .preview-wrap{display:block!important;margin:0!important;box-shadow:none!important;border-radius:0!important;height:297mm!important;max-height:297mm!important;overflow:hidden!important}
   .preview-bar{display:none!important}
-  #preview-content{padding:14mm 14mm 10mm!important;display:block!important;height:297mm!important;max-height:297mm!important;overflow:hidden!important;box-sizing:border-box!important}
-  #previewWrap{display:block!important;height:297mm!important;max-height:297mm!important;overflow:hidden!important}
-  #toast{display:none!important}
+  #preview-content{padding:14mm 14mm 10mm!important;box-sizing:border-box!important}
 }
 </style>
 </head>
@@ -186,10 +178,16 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
     </div>
   </div>
 
+  <!-- ページ追加ボタン -->
+  <div id="page-controls" class="no-print" style="margin-top:16px;display:flex;justify-content:flex-end;gap:10px">
+    <button onclick="addPage()" style="padding:8px 18px;background:#fff;color:#1A1A1A;border:2px solid #1A1A1A;border-radius:6px;font-size:13px;cursor:pointer;font-weight:700;font-family:inherit">＋ ページ追加</button>
+    <button id="remove-page-btn" onclick="removePage()" style="padding:8px 18px;background:#fff;color:#E8000D;border:2px solid #E8000D;border-radius:6px;font-size:13px;cursor:pointer;font-weight:700;font-family:inherit;display:none">－ ページ削除</button>
+  </div>
+
   <!-- プレビュー -->
   <div class="preview-wrap" id="previewWrap">
     <div class="preview-bar">印刷プレビュー（A4縦）</div>
-    <div id="preview-content" style="padding:28px 36px;font-size:11.5px;color:#1a1a1a"></div>
+    <div id="preview-content" style="font-size:11.5px;color:#1a1a1a"></div>
   </div>
 
 </div>
@@ -208,6 +206,7 @@ const DEFAULT_CLIENTS=[
   {id:5,name:'（社）任天会',dept:'',addr:''},
   {id:6,name:'（株）ヒカリエ',dept:'',addr:'〒518-0623 三重県名張市桔梗が丘3-2-18'},
   {id:9,name:'(有)サカエエンジニアリング',dept:'',addr:'大阪市淀川区加島2丁目2-50'},
+  {id:10,name:'中央特機株式会社',dept:'営業部',addr:'大阪府大阪市北区中津7-7-1'},
   {id:7,name:'㈱フジマック',dept:'神戸営業所',addr:'〒652-0863 兵庫県神戸市兵庫区和田宮通3丁目3番17号'},
   {id:8,name:'㈱フジマック',dept:'姫路営業所',addr:'〒672-8046 兵庫県姫路市飾磨区都倉1番地41号'},
 ];
@@ -217,6 +216,7 @@ let clients=[];
 let showCL=false;
 let showPreview=true;
 let rowId=0;
+let totalPages=1;
 
 // 日付フォーマット
 function fmtDate(s){if(!s)return'';const[y,m,d]=s.split('-');return y+'年'+Number(m)+'月'+Number(d)+'日';}
@@ -409,6 +409,33 @@ function dateToInput(str){
   const m = str.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
   if(m) return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
   return '';
+}
+
+// ページ管理
+function addPage(){
+  if(totalPages >= 4){ showToast('最大4ページまでです'); return; }
+  totalPages++;
+  document.getElementById('remove-page-btn').style.display='block';
+  // 明細に7行追加（新しいページ分）
+  for(var i=0;i<25;i++) addRow();
+  renderPreview();
+  showToast(totalPages + 'ページに拡張しました');
+}
+
+function removePage(){
+  if(totalPages <= 1) return;
+  // 最後の7行を削除
+  var rows = document.querySelectorAll('#itemBody tr');
+  var deleteCount = Math.min(7, rows.length - 1);
+  for(var i=0;i<deleteCount;i++){
+    var allRows = document.querySelectorAll('#itemBody tr');
+    allRows[allRows.length-1].remove();
+  }
+  totalPages--;
+  if(totalPages <= 1) document.getElementById('remove-page-btn').style.display='none';
+  calc();
+  renderPreview();
+  showToast(totalPages + 'ページに戻しました');
 }
 
 // 支払期限自動計算
@@ -615,43 +642,29 @@ function renderPreview(){
     ...(staff?[{l:'担当者',v:staff}]:[]),
   ];
 
-  const emptyRows=Math.max(0,7-rows.length);
-  const itemRows=rows.map((r,i)=>`
-    <tr style="background:${i%2===0?'#fff':'#fafafa'};border-bottom:1px solid #efefef">
-      <td style="padding:5px 9px;color:#888;font-size:9px">${r.workdate?fmtDate(r.workdate):''}</td>
-      <td style="padding:5px 9px;font-weight:500;font-size:10px">${r.name}</td>
-      <td style="padding:5px 9px;color:#777;font-size:9.5px">${r.spec}</td>
-      <td style="padding:5px 9px;text-align:center;font-size:10px">${r.qty}</td>
-      <td style="padding:5px 9px;text-align:center;color:#888;font-size:10px">${r.unit}</td>
-      <td style="padding:5px 9px;text-align:right;color:#555;font-size:10px">¥${fmtNum(r.price)}</td>
-      <td style="padding:5px 9px;text-align:right;font-weight:700;color:#111;font-size:10px">¥${fmtNum(r.qty*r.price)}</td>
-      <td style="padding:5px 9px;color:#bbb;font-size:9px">${r.note}</td>
-    </tr>`).join('');
-  const emptyRowsHtml=Array(emptyRows).fill('<tr style="border-bottom:1px solid #f5f5f5">'+Array(7).fill('<td style="padding:4px 9px">&nbsp;</td>').join('')+'</tr>').join('');
-
-  document.getElementById('preview-content').innerHTML=`
-    <div style="font-family:'Noto Sans JP',sans-serif;color:#1a1a1a;background:#fff">
-      <div style="margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-          <div style="position:relative;display:inline-block">
-            <img src="${LOGO}" alt="TKS" style="height:22px;display:block;margin-bottom:4px">
-            <div style="font-size:8.5px;color:#444;font-weight:600;margin-bottom:2px">${CO.name}</div>
-            <div style="font-size:7.5px;color:#888;line-height:1.7">${CO.zip}　${CO.addr}<br>TEL ${CO.tel}　FAX ${CO.fax}<br>登録番号 T3120101071074</div>
-            <img src="${HANKO_SRC}" alt="印" style="position:absolute;bottom:-8px;right:-40px;width:75px;height:75px;opacity:0.92">
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:15px;font-weight:900;color:${R};letter-spacing:.1em;line-height:1;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid ${R}">${tab}</div>
-            <div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;margin-top:4px">
-              ${metaRows.map(m=>`<div style="display:flex;gap:10px;font-size:8.5px"><span style="color:#bbb;min-width:44px;text-align:right">${m.l}</span><span style="color:#444;font-weight:500;min-width:100px;text-align:right">${m.v}</span></div>`).join('')}
-            </div>
+  // ヘッダーHTML（全ページ共通）
+  function makeHeader(){
+    return `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div style="position:relative;display:inline-block">
+          <img src="${LOGO}" alt="TKS" style="height:28px;display:block;margin-bottom:4px">
+          <div style="font-size:8.5px;color:#444;font-weight:600;margin-bottom:2px">${CO.name}</div>
+          <div style="font-size:7.5px;color:#888;line-height:1.7">${CO.zip}　${CO.addr}<br>TEL ${CO.tel}　FAX ${CO.fax}<br>登録番号 T3120101071074</div>
+          <img src="${HANKO_SRC}" alt="印" style="position:absolute;bottom:-8px;right:-40px;width:75px;height:75px;opacity:0.92">
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:15px;font-weight:900;color:${R};letter-spacing:.1em;line-height:1;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid ${R}">${tab}</div>
+          <div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;margin-top:4px">
+            ${metaRows.map(m=>`<div style="display:flex;gap:10px;font-size:8.5px"><span style="color:#bbb;min-width:44px;text-align:right">${m.l}</span><span style="color:#444;font-weight:500;min-width:100px;text-align:right">${m.v}</span></div>`).join('')}
           </div>
         </div>
-        <div style="height:1px;background:${R};margin-bottom:10px"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px">
+      <div style="height:1px;background:${R};margin-bottom:10px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px">
         <div style="flex:1">
           ${cAddr?`<div style="font-size:8px;color:#ccc;margin-bottom:3px">${cAddr}</div>`:''}
-          <div style="display:flex;align-items:baseline;gap:5px;margin-bottom:8px">
+          <div style="display:flex;align-items:baseline;gap:5px;margin-bottom:6px">
             <span style="font-size:16px;font-weight:700;color:#111">${cName}</span>
             ${cDept?`<span style="font-size:10px;color:#777">${cDept}</span>`:''}
             <span style="font-size:12px;color:#555;margin-left:2px">御中</span>
@@ -663,34 +676,118 @@ function renderPreview(){
           <div style="font-size:22px;font-weight:900;color:${R}">¥${fmtNum(total)}</div>
         </div>
       </div>
-      <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:8px">
-        <thead><tr>
-          ${[{h:'日付',w:'72px'},{h:'品名・型番',w:'auto'},{h:'仕様',w:'80px'},{h:'数量',w:'44px'},{h:'単位',w:'44px'},{h:'単価',w:'80px'},{h:'金額',w:'88px'},{h:'備考',w:'70px'}].map(({h,w},i)=>`<th style="padding:8px 9px;text-align:${i>=2&&i<=5?'center':'left'};font-size:8.5px;font-weight:700;color:#fff;letter-spacing:.06em;background:${i===0?R:'#2a2a2a'};width:${w};border-right:${i<6?'1px solid rgba(255,255,255,.12)':'none'};white-space:nowrap">${h}</th>`).join('')}
-        </tr></thead>
-        <tbody>${itemRows}${emptyRowsHtml}</tbody>
-      </table>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
-        <div style="width:250px;border-top:2px solid ${R}">
-          <div style="display:flex;justify-content:space-between;padding:4px 10px;border-bottom:1px solid #f0f0f0;font-size:10px"><span style="color:#999">小計</span><span style="color:#555">¥${fmtNum(sub)}</span></div>
-          <div style="display:flex;justify-content:space-between;padding:4px 10px;border-bottom:1px solid #f0f0f0;font-size:10px"><span style="color:#999">消費税（${rate}%）</span><span style="color:#555">¥${fmtNum(tax)}</span></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:${R}0d">
-            <span style="font-size:10.5px;font-weight:700;color:#333">合計（税込）</span>
-            <span style="font-size:16px;font-weight:900;color:${R}">¥${fmtNum(total)}</span>
-          </div>
+    </div>`;
+  }
+
+  // テーブルヘッダー
+  function makeTableHeader(){
+    return `<thead><tr>
+      ${[{h:'日付',w:'72px'},{h:'品名・型番',w:'auto'},{h:'仕様',w:'80px'},{h:'数量',w:'40px'},{h:'単位',w:'40px'},{h:'単価',w:'76px'},{h:'金額',w:'84px'},{h:'備考',w:'66px'}].map(({h,w},i)=>`<th style="padding:6px 7px;text-align:${i>=2&&i<=6?'center':'left'};font-size:8px;font-weight:700;color:#fff;letter-spacing:.04em;background:${i===1?R:'#2a2a2a'};width:${w};border-right:${i<7?'1px solid rgba(255,255,255,.12)':'none'};white-space:nowrap">${h}</th>`).join('')}
+    </tr></thead>`;
+  }
+
+  // 1行のHTML
+  function makeRow(r,idx){
+    return `<tr style="background:${idx%2===0?'#fff':'#fafafa'};border-bottom:1px solid #efefef;height:28px">
+      <td style="padding:3px 7px;color:#888;font-size:8.5px;white-space:nowrap">${r.workdate?fmtDate(r.workdate):''}</td>
+      <td style="padding:3px 7px;font-weight:500;font-size:9px">${r.name}</td>
+      <td style="padding:3px 7px;color:#777;font-size:8.5px;text-align:center">${r.spec}</td>
+      <td style="padding:3px 7px;text-align:center;font-size:9px">${r.qty}</td>
+      <td style="padding:3px 7px;text-align:center;color:#888;font-size:9px">${r.unit}</td>
+      <td style="padding:3px 7px;text-align:right;color:#555;font-size:9px">¥${fmtNum(r.price)}</td>
+      <td style="padding:3px 7px;text-align:right;font-weight:700;color:#111;font-size:9px">¥${fmtNum(r.qty*r.price)}</td>
+      <td style="padding:3px 7px;color:#bbb;font-size:8px">${r.note}</td>
+    </tr>`;
+  }
+
+  // 空行
+  function makeEmptyRow(idx){
+    return `<tr style="background:${idx%2===0?'#fff':'#fafafa'};border-bottom:1px solid #f5f5f5;height:28px">
+      ${Array(8).fill('<td style="padding:3px 7px">&nbsp;</td>').join('')}
+    </tr>`;
+  }
+
+  // 合計ブロック
+  function makeTotals(){
+    let html = `<div style="display:flex;justify-content:flex-end;margin-top:6px;margin-bottom:8px">
+      <div style="width:250px;border-top:2px solid ${R}">
+        <div style="display:flex;justify-content:space-between;padding:4px 10px;border-bottom:1px solid #f0f0f0;font-size:9.5px"><span style="color:#999">小計</span><span style="color:#555">¥${fmtNum(sub)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:4px 10px;border-bottom:1px solid #f0f0f0;font-size:9.5px"><span style="color:#999">消費税（${rate}%）</span><span style="color:#555">¥${fmtNum(tax)}</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:${R}0d">
+          <span style="font-size:10px;font-weight:700;color:#333">合計（税込）</span>
+          <span style="font-size:15px;font-weight:900;color:${R}">¥${fmtNum(total)}</span>
         </div>
       </div>
-      ${remarks?`<div style="border-left:3px solid ${R};border-radius:0 4px 4px 0;padding:8px 12px;background:${R}0d;margin-bottom:12px"><div style="font-size:8px;font-weight:700;color:${R};letter-spacing:.1em;margin-bottom:4px">備　考</div><div style="font-size:10px;color:#555;line-height:1.8">${remarks}</div></div>`:''}
-      ${tab==='請求書'?`<div style="border-left:3px solid #1A1A1A;border-radius:0 4px 4px 0;padding:10px 14px;background:#f9f9f9;margin-bottom:12px"><div style="font-size:8px;font-weight:700;color:#1A1A1A;letter-spacing:.1em;margin-bottom:6px">振　込　先</div><div style="font-size:10px;color:#333;line-height:2">大阪シティ信用金庫　長吉支店<br>普通　1041866<br>株式会社トータルキッチンシステム</div></div>`:''}
-      <div style="margin-top:10px;padding-top:8px;border-top:1px solid #efefef;display:flex;justify-content:flex-end">
-        <div style="font-size:8px;color:#ccc">${CO.name}</div>
-      </div>
     </div>`;
+    // 備考
+    if(remarks) html += `<div style="border-left:3px solid ${R};border-radius:0 4px 4px 0;padding:6px 12px;background:${R}0d;margin-bottom:8px"><div style="font-size:8px;font-weight:700;color:${R};letter-spacing:.1em;margin-bottom:3px">備　考</div><div style="font-size:9.5px;color:#555;line-height:1.8">${remarks}</div></div>`;
+    // 振込先（請求書のみ）
+    if(tab==='請求書') html += `<div style="border-left:3px solid #1A1A1A;border-radius:0 4px 4px 0;padding:8px 14px;background:#f9f9f9;margin-bottom:8px"><div style="font-size:8px;font-weight:700;color:#1A1A1A;letter-spacing:.1em;margin-bottom:5px">振　込　先</div><div style="font-size:9.5px;color:#333;line-height:2">大阪シティ信用金庫　長吉支店<br>普通　1041866<br>株式会社トータルキッチンシステム</div></div>`;
+    // フッター
+    html += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #efefef;display:flex;justify-content:flex-end"><div style="font-size:8px;color:#ccc">${CO.name}</div></div>`;
+    return html;
+  }
+
+  // ページ分割して描画
+  const ROWS_PER_PAGE = 25;
+  let pages = [];
+  for(let p=0;p<totalPages;p++){
+    const pageRows = rows.slice(p*ROWS_PER_PAGE, (p+1)*ROWS_PER_PAGE);
+    const isLastPage = (p === totalPages-1);
+    let rowsHtml = '';
+    for(let i=0;i<ROWS_PER_PAGE;i++){
+      if(i < pageRows.length) rowsHtml += makeRow(pageRows[i], i);
+      else rowsHtml += makeEmptyRow(i);
+    }
+    const pageStyle = p>0 ? 'page-break-before:always;' : '';
+    pages.push(`
+      <div style="${pageStyle}padding:12mm 14mm 10mm;font-family:'Noto Sans JP',sans-serif;color:#1a1a1a;background:#fff;width:210mm;min-height:297mm;box-sizing:border-box">
+        ${makeHeader()}
+        <table style="width:100%;border-collapse:collapse;font-size:9px;margin-bottom:6px">
+          ${makeTableHeader()}
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        ${isLastPage ? makeTotals() : ''}
+      </div>`);
+  }
+
+  document.getElementById('preview-content').innerHTML = pages.join('');
 }
 
 // 印刷
 function doPrint(){
   if(!showPreview){ renderPreview(); }
-  setTimeout(function(){ window.print(); }, 300);
+  // 印刷前：body以下のpreviewWrap以外を全て非表示
+  var allCards = document.querySelectorAll('.card, header, .no-print');
+  var previewWrap = document.getElementById('previewWrap');
+  // previewWrapを一時的にbody直下に移動
+  var originalParent = previewWrap.parentNode;
+  var originalNext = previewWrap.nextSibling;
+  document.body.appendChild(previewWrap);
+  // body内のpreviewWrap以外を非表示
+  var bodyChildren = Array.from(document.body.children);
+  bodyChildren.forEach(function(el){
+    if(el !== previewWrap && el.id !== 'toast'){
+      el.setAttribute('data-print-hidden', el.style.display || '');
+      el.style.display = 'none';
+    }
+  });
+  setTimeout(function(){
+    window.print();
+    // 印刷後：元に戻す
+    bodyChildren.forEach(function(el){
+      if(el.hasAttribute('data-print-hidden')){
+        el.style.display = el.getAttribute('data-print-hidden');
+        el.removeAttribute('data-print-hidden');
+      }
+    });
+    // previewWrapを元の位置に戻す
+    if(originalNext){
+      originalParent.insertBefore(previewWrap, originalNext);
+    } else {
+      originalParent.appendChild(previewWrap);
+    }
+  }, 300);
 }
 
 // ── 3書類一括登録して新規作成 ──────────────────────
@@ -797,6 +894,9 @@ function resetForm(){
   // タブを見積書に戻す
   switchTab('見積書');
   isRegistered = false;
+  // ページ数リセット
+  totalPages = 1;
+  document.getElementById('remove-page-btn').style.display='none';
 }
 
 // ── スプレッドシート登録 ──────────────────────────
