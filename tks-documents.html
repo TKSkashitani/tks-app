@@ -28,7 +28,7 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
 .tab-btn{padding:7px 20px;border-radius:6px;border:2px solid #CCC;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;background:#fff;color:#666;transition:all .15s}
 .tab-btn.active{background:#E8000D;color:#fff;border-color:#E8000D}
 #toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#1A1A1A;color:#fff;padding:10px 28px;border-radius:30px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:9999;display:none;white-space:nowrap}
-.preview-wrap{margin-top:24px;background:#fff;border-radius:10px;box-shadow:0 2px 16px rgba(0,0,0,.1);display:none}
+.preview-wrap{margin-top:24px;background:#fff;border-radius:10px;box-shadow:0 2px 16px rgba(0,0,0,.1);display:block}
 .preview-bar{padding:10px 24px;background:#EDEDED;border-radius:10px 10px 0 0;font-size:12px;color:#888}
 @media print{
   @page{size:A4 portrait;margin:0}
@@ -185,11 +185,8 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
   </div>
 
   <!-- プレビュー -->
-  <div class="preview-wrap" id="previewWrap" style="position:fixed;top:0;left:0;width:100vw;height:100vh;overflow-y:auto;z-index:1000;background:#e8e8e8;display:none">
-    <div class="preview-bar no-print" style="position:sticky;top:0;z-index:10;background:#333;color:#fff;padding:8px 16px;display:flex;justify-content:space-between;align-items:center">
-      <span>印刷プレビュー（A4縦）</span>
-      <button onclick="closePreview()" style="background:#E8000D;color:#fff;border:none;border-radius:4px;padding:4px 14px;font-size:12px;cursor:pointer;font-weight:700">✕ 閉じる</button>
-    </div>
+  <div class="preview-wrap" id="previewWrap" style="display:block">
+    <div <div class="preview-bar no-print" style="display:none">
     <div id="preview-content" style="font-size:11.5px;color:#1a1a1a;display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:16px"></div>
   </div>
 
@@ -217,7 +214,7 @@ const DEFAULT_CLIENTS=[
 let tab='見積書';
 let clients=[];
 let showCL=false;
-let showPreview=false;
+let showPreview=true;
 let rowId=0;
 let totalPages=1;
 
@@ -240,6 +237,8 @@ function init(){
     }else{clients=sortC(DEFAULT_CLIENTS);}
   }catch(e){clients=sortC(DEFAULT_CLIENTS);}
   addRow();
+  switchTab('見積書');
+  renderPreview();
 }
 
 function sortC(arr){return[...arr].sort((a,b)=>(a.name+a.dept).localeCompare(b.name+b.dept,'ja'));}
@@ -668,7 +667,7 @@ function renderPreview(){
         <div style="text-align:right">
           <div style="font-size:15px;font-weight:900;color:${R};letter-spacing:.1em;line-height:1;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid ${R}">${tab}</div>
           <div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;margin-top:4px">
-            ${metaRows.map(m=>`<div style="display:flex;gap:10px;font-size:8.5px"><span style="color:#bbb;min-width:44px;text-align:right">${m.l}</span><span style="color:#444;font-weight:500;min-width:100px;text-align:right">${m.v}</span></div>`).join('')}
+            ${metaRows.map(m=>`<div style="display:flex;gap:10px;font-size:8.5px"><span style="color:#bbb;min-width:44px;text-align:right">${m.l}</span><span style="color:#444;font-weight:500;min-width:130px;text-align:right;white-space:nowrap">${m.v}</span></div>`).join('')}
           </div>
         </div>
       </div>
@@ -753,9 +752,9 @@ function renderPreview(){
     }
     const pageStyle = p>0 ? 'page-break-before:always;' : '';
     pages.push(`
-      <div style="${pageStyle}padding:10mm 15mm 10mm;font-family:'Noto Sans JP',sans-serif;color:#1a1a1a;background:#fff;width:210mm;min-height:297mm;box-sizing:border-box">
+      <div style="${pageStyle}padding:14mm 14mm 10mm;font-family:'Noto Sans JP',sans-serif;color:#1a1a1a;background:#fff;width:210mm;min-height:297mm;box-sizing:border-box">
         ${makeHeader()}
-        <table style="width:100%;border-collapse:collapse;font-size:9px;margin-bottom:6px">
+        <table style="width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:8px">
           ${makeTableHeader()}
           <tbody>${rowsHtml}</tbody>
         </table>
@@ -768,6 +767,7 @@ function renderPreview(){
 
 // 印刷
 function doPrint(){
+  // Safari: ヘッダとフッタをプリント をOFFにしてください
   renderPreview();
   var previewWrap = document.getElementById('previewWrap');
   // 印刷用：fixedを解除してbody直下で通常表示
