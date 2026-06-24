@@ -417,7 +417,7 @@ function addPage(){
   totalPages++;
   document.getElementById('remove-page-btn').style.display='block';
   // 明細に7行追加（新しいページ分）
-  for(var i=0;i<25;i++) addRow();
+  for(var i=0;i<12;i++) addRow();
   renderPreview();
   showToast(totalPages + 'ページに拡張しました');
 }
@@ -648,7 +648,7 @@ function renderPreview(){
     <div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
         <div style="position:relative;display:inline-block">
-          <img src="${LOGO}" alt="TKS" style="height:28px;display:block;margin-bottom:4px">
+          <img src="${LOGO}" alt="TKS" style="height:24px;display:block;margin-bottom:4px">
           <div style="font-size:8.5px;color:#444;font-weight:600;margin-bottom:2px">${CO.name}</div>
           <div style="font-size:7.5px;color:#888;line-height:1.7">${CO.zip}　${CO.addr}<br>TEL ${CO.tel}　FAX ${CO.fax}<br>登録番号 T3120101071074</div>
           <img src="${HANKO_SRC}" alt="印" style="position:absolute;bottom:-8px;right:-40px;width:75px;height:75px;opacity:0.92">
@@ -688,7 +688,7 @@ function renderPreview(){
 
   // 1行のHTML
   function makeRow(r,idx){
-    return `<tr style="background:${idx%2===0?'#fff':'#fafafa'};border-bottom:1px solid #efefef;height:28px">
+    return `<tr style="background:${idx%2===0?'#fff':'#fafafa'};border-bottom:1px solid #efefef;height:24px">
       <td style="padding:3px 7px;color:#888;font-size:8.5px;white-space:nowrap">${r.workdate?fmtDate(r.workdate):''}</td>
       <td style="padding:3px 7px;font-weight:500;font-size:9px">${r.name}</td>
       <td style="padding:3px 7px;color:#777;font-size:8.5px;text-align:center">${r.spec}</td>
@@ -702,7 +702,7 @@ function renderPreview(){
 
   // 空行
   function makeEmptyRow(idx){
-    return `<tr style="background:${idx%2===0?'#fff':'#fafafa'};border-bottom:1px solid #f5f5f5;height:28px">
+    return `<tr style="background:${idx%2===0?'#fff':'#fafafa'};border-bottom:1px solid #f5f5f5;height:24px">
       ${Array(8).fill('<td style="padding:3px 7px">&nbsp;</td>').join('')}
     </tr>`;
   }
@@ -729,7 +729,7 @@ function renderPreview(){
   }
 
   // ページ分割して描画
-  const ROWS_PER_PAGE = 25;
+  const ROWS_PER_PAGE = 12;
   let pages = [];
   for(let p=0;p<totalPages;p++){
     const pageRows = rows.slice(p*ROWS_PER_PAGE, (p+1)*ROWS_PER_PAGE);
@@ -741,7 +741,7 @@ function renderPreview(){
     }
     const pageStyle = p>0 ? 'page-break-before:always;' : '';
     pages.push(`
-      <div style="${pageStyle}padding:12mm 14mm 10mm;font-family:'Noto Sans JP',sans-serif;color:#1a1a1a;background:#fff;width:210mm;min-height:297mm;box-sizing:border-box">
+      <div style="${pageStyle}padding:10mm 12mm 8mm;font-family:'Noto Sans JP',sans-serif;color:#1a1a1a;background:#fff;width:210mm;min-height:297mm;box-sizing:border-box">
         ${makeHeader()}
         <table style="width:100%;border-collapse:collapse;font-size:9px;margin-bottom:6px">
           ${makeTableHeader()}
