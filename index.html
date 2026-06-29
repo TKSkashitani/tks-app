@@ -244,6 +244,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .pv-eq-table tr:nth-child(even) td{background:var(--g100)}
 .pv-photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pv-photos-few{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pv-photos-large{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.pv-photos-2col{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:8px}
 .pv-photo{border-radius:5px;overflow:hidden;border:1px solid var(--g200)}
 .pv-photo img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
 .pv-photo-cap{font-size:9px;color:var(--g400);padding:3px 6px;text-align:center}
@@ -255,9 +257,11 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   .pv-body{padding:14px 18px!important}
   .pv-sec{margin-bottom:12px!important;page-break-inside:avoid!important}
   .pv-header{padding:14px 18px!important}
-  /* 写真セクションは必ず改ページして2ページ目に送る */
-  .pv-sec:has(.pv-photos-few){page-break-before:always!important;margin-top:0!important}
+  /* 3枚以上の写真は2ページ目に（pv-page2で管理） */
   .pv-page2{page-break-before:always!important}
+  /* 1〜2枚は1ページ目に収める */
+  .pv-photos-large{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
+  .pv-photos-2col{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
   .pv-photos-few{grid-template-columns:repeat(3,1fr)!important;gap:5px!important}
   .pv-photos{grid-template-columns:repeat(3,1fr)!important;gap:5px!important}
   .pv-photo{page-break-inside:avoid!important}
@@ -1641,52 +1645,65 @@ function buildPreview() {
       </div></div>`;
   }
 
-  // 写真グリッド生成（枚数に応じてレイアウト自動調整）
-  const photoGridClass = (count) => {
-    if(count <= 3) return 'pv-photos-few';   // 3列
-    return 'pv-photos-few';                   // 2ページ目も3列
-  };
+  // ==============================
+  // 写真レイアウト新ルール
+  // 0枚：なし
+  // 1〜2枚：1ページ目に大きめ表示（2列）
+  // 3枚以上：2ページ目に送る（3列）
+  // ==============================
+  const allPhotos0 = photos[0] || [];
+  const allPhotos1 = photos[1] || [];
+  const totalPhotos = allPhotos0.length + allPhotos1.length;
 
-  const makePhotoSection = (arr, label) => {
-    if(!arr.length) return { page1: '', page2: '' };
-    const p1 = arr.slice(0, 3);  // 1〜3枚目：1ページ目
-    const p2 = arr.slice(3);     // 4枚目以降：2ページ目
-
-    const makeGrid = (items, cls) => items.map(p =>
+  const makeGrid = (items, cols) => {
+    const gridClass = cols === 2 ? 'pv-photos-large' : 'pv-photos-few';
+    const imgs = items.map(p =>
       `<div class="pv-photo"><img src="${p.src}" loading="lazy"><div class="pv-photo-cap">${escHtml(p.cap)}</div></div>`
     ).join('');
-
-    const page1HTML = p1.length ? `
-      <div class="pv-sec">
-        <div class="pv-sec-title">${label}</div>
-        <div class="${photoGridClass(arr.length)}">${makeGrid(p1)}</div>
-      </div>` : '';
-
-    const page2HTML = p2.length ? `
-      <div class="pv-sec">
-        <div class="pv-sec-title">${label}（続き）</div>
-        <div class="pv-photos-few">${makeGrid(p2)}</div>
-      </div>` : '';
-
-    return { page1: page1HTML, page2: page2HTML };
+    return `<div class="${gridClass}">${imgs}</div>`;
   };
 
-  const ph0 = makePhotoSection(photos[0], '現地写真');
-  const ph1 = makePhotoSection(photos[1], '提案機器');
+  let photosPage1 = '';
+  let photosPage2 = '';
 
-  const photosPage1 = (ph0.page1 || ph1.page1)
-    ? `<div class="pv-sec" style="margin-bottom:0">${ph0.page1}${ph1.page1}</div>` : '';
-
-  const photosPage2 = ph0.page2 || ph1.page2
-    ? `<div class="pv-page2">
-        <div class="pv-body">
-          ${ph0.page2}${ph1.page2}
-        </div>
-        <div class="pv-footer">
-          <span>${escHtml(v('ourCompany')||'')} ${escHtml(v('ourPerson')||'')}</span>
-          <span>作成日：${escHtml(v('docDate')||'')}</span>
-        </div>
-      </div>` : '';
+  if(totalPhotos === 0) {
+    // 写真なし
+    photosPage1 = '';
+    photosPage2 = '';
+  } else if(totalPhotos <= 2) {
+    // 1〜2枚：1ページ目のテキスト下に2列で表示
+    const allItems = [...allPhotos0, ...allPhotos1];
+    const label = allPhotos0.length ? '現地写真' : '提案機器';
+    photosPage1 = `
+      <div class="pv-sec" style="margin-bottom:0">
+        <div class="pv-sec-title">${label}</div>
+        <div class="pv-photos-2col">${allItems.map(p =>
+          `<div class="pv-photo"><img src="${p.src}" loading="lazy"><div class="pv-photo-cap">${escHtml(p.cap)}</div></div>`
+        ).join('')}</div>
+      </div>`;
+    photosPage2 = '';
+  } else {
+    // 3枚以上：2ページ目に3列で表示
+    photosPage1 = '';
+    const p2sections = [];
+    if(allPhotos0.length) p2sections.push(`
+      <div class="pv-sec">
+        <div class="pv-sec-title">現地写真</div>
+        ${makeGrid(allPhotos0, 3)}
+      </div>`);
+    if(allPhotos1.length) p2sections.push(`
+      <div class="pv-sec">
+        <div class="pv-sec-title">提案機器</div>
+        ${makeGrid(allPhotos1, 3)}
+      </div>`);
+    photosPage2 = `<div class="pv-page2">
+      <div class="pv-body">${p2sections.join('')}</div>
+      <div class="pv-footer">
+        <span>${escHtml(v('ourCompany')||'')} ${escHtml(v('ourPerson')||'')}</span>
+        <span>作成日：${escHtml(v('docDate')||'')}</span>
+      </div>
+    </div>`;
+  }
 
   const logoHTML = logoData ? `<img src="${logoData}" style="height:32px;object-fit:contain;margin-bottom:6px;display:block">` : '';
 
