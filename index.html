@@ -1533,9 +1533,50 @@ async function generateAI(typeIdx) {
   }
 
   const prompts = [
-    `業務用厨房機器メーカーの営業担当として、お客様向け提案書の本文を200〜280字で作成してください。前置き・後書き・文字数説明・区切り線は一切不要。提案文だけをそのまま出力。箇条書き・記号・価格は使わず丁寧な散文で。\n\nお客様：${clientName}\nヒアリングメモ：${clientMemo}\n${contextInfo}`,
-    `業務用厨房機器の修理担当として、お客様向け修理提案書の本文を200〜280字で作成してください。前置き・後書き・文字数説明・区切り線は一切不要。提案文だけをそのまま出力。箇条書き・記号・価格は使わず丁寧な散文で。\n\nお客様：${clientName}\nヒアリングメモ：${clientMemo}\n${contextInfo}`,
-    `業務用厨房機器の保守サービス担当として、保守契約提案書の本文を200〜280字で作成してください。前置き・後書き・文字数説明・区切り線は一切不要。提案文だけをそのまま出力。箇条書き・記号・価格は使わず丁寧な散文で。\n\nお客様：${clientName}\nヒアリングメモ：${clientMemo}\n${contextInfo}`
+    `業務用厨房機器メーカーの営業担当として、お客様向け提案書の本文を作成してください。
+
+【必須ルール】
+・文字数：150〜200文字以内（厳守）
+・1文は40文字以内に収める
+・段落は2〜3つに分け、各段落は1〜2文
+・前置き・後書き・文字数説明・区切り線は不要
+・提案文のみをそのまま出力
+・箇条書き・記号・価格は使わない
+・丁寧な散文で読みやすく
+
+お客様：${clientName}
+ヒアリングメモ：${clientMemo}
+${contextInfo}`,
+
+    `業務用厨房機器の修理担当として、お客様向け修理提案書の本文を作成してください。
+
+【必須ルール】
+・文字数：150〜200文字以内（厳守）
+・1文は40文字以内に収める
+・段落は2〜3つに分け、各段落は1〜2文
+・前置き・後書き・文字数説明・区切り線は不要
+・提案文のみをそのまま出力
+・箇条書き・記号・価格は使わない
+・丁寧な散文で読みやすく
+
+お客様：${clientName}
+ヒアリングメモ：${clientMemo}
+${contextInfo}`,
+
+    `業務用厨房機器の保守サービス担当として、保守契約提案書の本文を作成してください。
+
+【必須ルール】
+・文字数：150〜200文字以内（厳守）
+・1文は40文字以内に収める
+・段落は2〜3つに分け、各段落は1〜2文
+・前置き・後書き・文字数説明・区切り線は不要
+・提案文のみをそのまま出力
+・箇条書き・記号・価格は使わない
+・丁寧な散文で読みやすく
+
+お客様：${clientName}
+ヒアリングメモ：${clientMemo}
+${contextInfo}`
   ];
 
   btn.disabled = true;
@@ -1648,12 +1689,14 @@ function buildPreview() {
   // ==============================
   // 写真レイアウト新ルール
   // 0枚：なし
-  // 1〜2枚：1ページ目に大きめ表示（2列）
-  // 3枚以上：2ページ目に送る（3列）
+  // 1〜2枚 かつ 文章300文字以内：1ページ目にテキスト下2列
+  // 1〜2枚 かつ 文章300文字超：2ページ目に送る
+  // 3枚以上：2ページ目に送る
   // ==============================
   const allPhotos0 = photos[0] || [];
   const allPhotos1 = photos[1] || [];
   const totalPhotos = allPhotos0.length + allPhotos1.length;
+  const isLongText = aiText && aiText.length > 300;
 
   const makeGrid = (items, cols) => {
     const gridClass = cols === 2 ? 'pv-photos-large' : 'pv-photos-few';
@@ -1663,6 +1706,14 @@ function buildPreview() {
     return `<div class="${gridClass}">${imgs}</div>`;
   };
 
+  const makeP2 = (sections) => `<div class="pv-page2">
+    <div class="pv-body">${sections.join('')}</div>
+    <div class="pv-footer">
+      <span>${escHtml(v('ourCompany')||'')} ${escHtml(v('ourPerson')||'')}</span>
+      <span>作成日：${escHtml(v('docDate')||'')}</span>
+    </div>
+  </div>`;
+
   let photosPage1 = '';
   let photosPage2 = '';
 
@@ -1670,8 +1721,8 @@ function buildPreview() {
     // 写真なし
     photosPage1 = '';
     photosPage2 = '';
-  } else if(totalPhotos <= 2) {
-    // 1〜2枚：1ページ目のテキスト下に2列で表示
+  } else if(totalPhotos <= 2 && !isLongText) {
+    // 1〜2枚 かつ 短い文章：1ページ目テキスト下に2列
     const allItems = [...allPhotos0, ...allPhotos1];
     const label = allPhotos0.length ? '現地写真' : '提案機器';
     photosPage1 = `
@@ -1683,26 +1734,20 @@ function buildPreview() {
       </div>`;
     photosPage2 = '';
   } else {
-    // 3枚以上：2ページ目に3列で表示
+    // 3枚以上 または 文章が長い場合：2ページ目に送る
     photosPage1 = '';
     const p2sections = [];
     if(allPhotos0.length) p2sections.push(`
       <div class="pv-sec">
         <div class="pv-sec-title">現地写真</div>
-        ${makeGrid(allPhotos0, 3)}
+        ${makeGrid(allPhotos0, totalPhotos <= 2 ? 2 : 3)}
       </div>`);
     if(allPhotos1.length) p2sections.push(`
       <div class="pv-sec">
         <div class="pv-sec-title">提案機器</div>
-        ${makeGrid(allPhotos1, 3)}
+        ${makeGrid(allPhotos1, totalPhotos <= 2 ? 2 : 3)}
       </div>`);
-    photosPage2 = `<div class="pv-page2">
-      <div class="pv-body">${p2sections.join('')}</div>
-      <div class="pv-footer">
-        <span>${escHtml(v('ourCompany')||'')} ${escHtml(v('ourPerson')||'')}</span>
-        <span>作成日：${escHtml(v('docDate')||'')}</span>
-      </div>
-    </div>`;
+    photosPage2 = makeP2(p2sections);
   }
 
   const logoHTML = logoData ? `<img src="${logoData}" style="height:32px;object-fit:contain;margin-bottom:6px;display:block">` : '';
