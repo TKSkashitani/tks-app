@@ -253,9 +253,14 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 /* 印刷時のみ適用 */
 @media print{
   .pv-body{padding:14px 18px!important}
-  .pv-sec{margin-bottom:12px!important}
+  .pv-sec{margin-bottom:12px!important;page-break-inside:avoid!important}
   .pv-header{padding:14px 18px!important}
-  .pv-photos{grid-template-columns:repeat(4,1fr)!important;gap:5px!important}
+  /* 写真セクションは必ず改ページして2ページ目に送る */
+  .pv-sec:has(.pv-photos-few){page-break-before:always!important;margin-top:0!important}
+  .pv-page2{page-break-before:always!important}
+  .pv-photos-few{grid-template-columns:repeat(3,1fr)!important;gap:5px!important}
+  .pv-photos{grid-template-columns:repeat(3,1fr)!important;gap:5px!important}
+  .pv-photo{page-break-inside:avoid!important}
   .pv-photo img{aspect-ratio:4/3!important}
   .pv-text{padding:9px!important;line-height:1.7!important;font-size:11px!important}
   .pv-footer{padding:8px 18px!important}
