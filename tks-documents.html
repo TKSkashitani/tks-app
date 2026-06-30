@@ -99,6 +99,10 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
         <input class="inp" id="paymentCustom" placeholder="例：検収後30日以内">
       </div>
     </div>
+    <div style="margin-top:14px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:12px;color:#666;font-weight:600">角印：</span>
+      <button id="hanko-toggle" onclick="toggleHanko()" style="padding:6px 16px;background:#1a7a4a;color:#fff;border:none;border-radius:20px;font-size:12px;cursor:pointer;font-weight:700;font-family:inherit;display:flex;align-items:center;gap:6px">🔴 角印あり</button>
+    </div>
   </div>
 
   <!-- 宛先 -->
@@ -325,6 +329,20 @@ function importClients(event){
     event.target.value = '';
   };
   reader.readAsText(file);
+}
+
+// 角印ON/OFF切替
+function toggleHanko(){
+  showHanko = !showHanko;
+  const btn = document.getElementById('hanko-toggle');
+  if(showHanko){
+    btn.textContent = '🔴 角印あり';
+    btn.style.background = '#1a7a4a';
+  } else {
+    btn.textContent = '⚪ 角印なし';
+    btn.style.background = '#999';
+  }
+  renderPreview();
 }
 
 // 書類呼び出し
