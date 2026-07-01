@@ -224,6 +224,7 @@ const DEFAULT_CLIENTS=[
 let tab='見積書';
 let clients=[];
 let showCL=false;
+let showHanko=true;
 let showPreview=true;
 let rowId=0;
 let totalPages=1;
@@ -688,7 +689,7 @@ function renderPreview(){
           <img src="${LOGO}" alt="TKS" style="height:28px;display:block;margin-bottom:4px">
           <div style="font-size:8.5px;color:#444;font-weight:600;margin-bottom:2px">${CO.name}</div>
           <div style="font-size:7.5px;color:#888;line-height:1.7">${CO.zip}　${CO.addr}<br>TEL ${CO.tel}　FAX ${CO.fax}<br>登録番号 T3120101071074</div>
-          <img src="${HANKO_SRC}" alt="印" style="position:absolute;bottom:-8px;right:-40px;width:75px;height:75px;opacity:0.92">
+          ${showHanko ? `<img src="${HANKO_SRC}" alt="印" style="position:absolute;bottom:-8px;right:-40px;width:75px;height:75px;opacity:0.92">` : ""}
         </div>
         <div style="text-align:right">
           <div style="font-size:15px;font-weight:900;color:${R};letter-spacing:.1em;line-height:1;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid ${R}">${tab}</div>
