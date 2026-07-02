@@ -124,7 +124,10 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
       <div><div class="fld-label">部署名</div><input class="inp" id="cDept" placeholder="ご担当部署"></div>
       <div><div class="fld-label">住所</div><input class="inp" id="cAddr" placeholder="大阪府大阪市…"></div>
     </div>
-    <div><div class="fld-label">件名</div><input class="inp" id="docTitle" placeholder="業務用厨房機器 納入一式" style="max-width:460px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div><div class="fld-label">件名</div><input class="inp" id="docTitle" placeholder="業務用厨房機器 納入一式"></div>
+      <div><div class="fld-label">現場名</div><input class="inp" id="siteName" placeholder="○○ビル 1F 厨房"></div>
+    </div>
   </div>
 
   <!-- 明細 -->
@@ -408,6 +411,7 @@ async function recallDoc(){
     document.getElementById('cDept').value    = d.cDept    || '';
     document.getElementById('cAddr').value    = d.cAddr    || '';
     document.getElementById('docTitle').value = d.docTitle || '';
+    if(document.getElementById('siteName')) document.getElementById('siteName').value = d.siteName || '';
     document.getElementById('remarks').value  = d.remarks  || '';
 
     // 消費税率
@@ -682,6 +686,7 @@ function renderPreview(){
   const cDept=document.getElementById('cDept').value;
   const cAddr=document.getElementById('cAddr').value;
   const docTitle=document.getElementById('docTitle').value;
+  const siteName=document.getElementById('siteName')?document.getElementById('siteName').value:'';
   const remarks=document.getElementById('remarks').value;
   const rate=Number(document.getElementById('taxRate').value);
   const sub=rows.reduce((s,r)=>s+r.qty*r.price,0);
@@ -720,12 +725,15 @@ function renderPreview(){
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px">
         <div style="flex:1">
           ${cAddr?`<div style="font-size:8px;color:#ccc;margin-bottom:3px">${cAddr}</div>`:''}
-          <div style="display:flex;align-items:baseline;gap:5px;margin-bottom:6px">
-            <span style="font-size:16px;font-weight:700;color:#111">${cName}</span>
-            ${cDept?`<span style="font-size:10px;color:#444">${cDept}</span>`:''}
-            <span style="font-size:12px;color:#222;margin-left:2px">御中</span>
+          <div style="margin-bottom:6px">
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <span style="font-size:16px;font-weight:700;color:#111">${cName}</span>
+              ${cDept?`<span style="font-size:11px;color:#333;font-weight:500">${cDept}</span>`:''}
+              <span style="font-size:12px;color:#222">御中</span>
+            </div>
           </div>
           ${docTitle?`<div style="display:inline-flex;align-items:center;gap:8px;background:${R}09;border:1px solid ${R}30;border-radius:3px;padding:4px 12px"><span style="font-size:8px;color:${R};font-weight:700;letter-spacing:.1em">件　名</span><span style="font-size:11px;font-weight:600;color:#222">${docTitle}</span></div>`:''}
+          ${siteName?`<div style="display:inline-block;border:1px solid #ddd;border-radius:3px;padding:4px 12px;margin-left:8px"><span style="font-size:8px;color:${R};font-weight:700;letter-spacing:.1em">現　場</span><span style="font-size:11px;font-weight:600;color:#222;margin-left:6px">${siteName}</span></div>`:''}
         </div>
         <div style="text-align:center;border:1.5px solid ${R};border-radius:6px;padding:10px 22px;min-width:150px;margin-left:20px;background:${R}0d">
           <div style="font-size:7.5px;color:${R};font-weight:700;letter-spacing:.12em;margin-bottom:3px">合計金額（税込）</div>
@@ -749,7 +757,7 @@ function renderPreview(){
       <td style="padding:4px 7px;font-weight:500;font-size:10.5px">${r.name}</td>
       <td style="padding:4px 7px;color:#444;font-size:10px;text-align:center">${r.spec}</td>
       <td style="padding:4px 7px;text-align:center;font-size:10.5px">${r.qty}</td>
-      <td style="padding:4px 7px;text-align:center;color:#555;font-size:10.5px">${r.unit}</td>
+      <td style="padding:4px 7px;text-align:center;color:${monoMode?'#222':'#555'};font-size:10.5px">${r.unit}</td>
       <td style="padding:4px 7px;text-align:right;color:#333;font-size:10.5px">¥${fmtNum(r.price)}</td>
       <td style="padding:4px 7px;text-align:right;font-weight:700;color:#111;font-size:10.5px">¥${fmtNum(r.qty*r.price)}</td>
       <td style="padding:4px 7px;color:#666;font-size:9.5px">${r.note}</td>
@@ -767,8 +775,8 @@ function renderPreview(){
   function makeTotals(){
     let html = `<div style="display:flex;justify-content:flex-end;margin-top:6px;margin-bottom:8px">
       <div style="width:250px;border-top:2px solid ${R}">
-        <div style="display:flex;justify-content:space-between;padding:4px 10px;border-bottom:1px solid #f0f0f0;font-size:10.5px"><span style="color:#555">小計</span><span style="color:#222">¥${fmtNum(sub)}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:4px 10px;border-bottom:1px solid #f0f0f0;font-size:10.5px"><span style="color:#555">消費税（${rate}%）</span><span style="color:#222">¥${fmtNum(tax)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:4px 10px;border-bottom:1px solid #f0f0f0;font-size:10.5px"><span style="color:${monoMode?'#222':'#555'}">小計</span><span style="color:${monoMode?'#000':'#222'}">¥${fmtNum(sub)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:4px 10px;border-bottom:1px solid #f0f0f0;font-size:10.5px"><span style="color:${monoMode?'#222':'#555'}">消費税（${rate}%）</span><span style="color:${monoMode?'#000':'#222'}">¥${fmtNum(tax)}</span></div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:${R}0d">
           <span style="font-size:10px;font-weight:700;color:#333">合計（税込）</span>
           <span style="font-size:15px;font-weight:900;color:${R}">¥${fmtNum(total)}</span>
@@ -929,6 +937,7 @@ function buildPayload(docType, docNo){
     cDept:    document.getElementById('cDept').value,
     cAddr:    document.getElementById('cAddr').value,
     docTitle: document.getElementById('docTitle').value,
+    siteName: document.getElementById('siteName')?document.getElementById('siteName').value:'',
     remarks:  document.getElementById('remarks').value,
     staff,
     subtotal: sub,
@@ -952,7 +961,7 @@ function resetForm(){
   document.getElementById('docNo').value = nextNo;
 
   // 宛先・件名・備考をクリア
-  ['cName','cDept','cAddr','docTitle','remarks'].forEach(id=>{
+  ['cName','cDept','cAddr','docTitle','siteName','remarks'].forEach(id=>{
     document.getElementById(id).value='';
   });
 
