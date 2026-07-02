@@ -102,6 +102,8 @@ input:focus,textarea:focus,select:focus{border-color:#E8000D!important}
     <div style="margin-top:14px;display:flex;align-items:center;gap:10px">
       <span style="font-size:12px;color:#666;font-weight:600">角印：</span>
       <button id="hanko-toggle" onclick="toggleHanko()" style="padding:6px 16px;background:#1a7a4a;color:#fff;border:none;border-radius:20px;font-size:12px;cursor:pointer;font-weight:700;font-family:inherit;display:flex;align-items:center;gap:6px">🔴 角印あり</button>
+      <span style="font-size:12px;color:#666;font-weight:600;margin-left:12px">色：</span>
+      <button id="mono-toggle" onclick="toggleMono()" style="padding:6px 16px;background:#E8000D;color:#fff;border:none;border-radius:20px;font-size:12px;cursor:pointer;font-weight:700;font-family:inherit;display:flex;align-items:center;gap:6px">🔴 カラー</button>
     </div>
   </div>
 
@@ -225,6 +227,7 @@ let tab='見積書';
 let clients=[];
 let showCL=false;
 let showHanko=true;
+let monoMode=false;
 let showPreview=true;
 let rowId=0;
 let totalPages=1;
@@ -330,6 +333,20 @@ function importClients(event){
     event.target.value = '';
   };
   reader.readAsText(file);
+}
+
+// 白黒モード切替
+function toggleMono(){
+  monoMode = !monoMode;
+  const btn = document.getElementById('mono-toggle');
+  if(monoMode){
+    btn.textContent = '⬛ 白黒';
+    btn.style.background = '#1a1a1a';
+  } else {
+    btn.textContent = '🔴 カラー';
+    btn.style.background = '#E8000D';
+  }
+  renderPreview();
 }
 
 // 角印ON/OFF切替
@@ -653,6 +670,7 @@ function closePreview(){
 }
 
 function renderPreview(){
+  const R = monoMode ? '#1a1a1a' : '#E8000D';
   const rows=getRows();
   const no=document.getElementById('docNo').value;
   const date=document.getElementById('docDate').value;
@@ -686,15 +704,15 @@ function renderPreview(){
     <div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
         <div style="position:relative;display:inline-block">
-          <img src="${LOGO}" alt="TKS" style="height:28px;display:block;margin-bottom:4px">
-          <div style="font-size:8.5px;color:#444;font-weight:600;margin-bottom:2px">${CO.name}</div>
-          <div style="font-size:7.5px;color:#888;line-height:1.7">${CO.zip}　${CO.addr}<br>TEL ${CO.tel}　FAX ${CO.fax}<br>登録番号 T3120101071074</div>
+          <img src="${LOGO}" alt="TKS" style="height:40px;display:block;margin-bottom:8px">
+          <div style="font-size:12px;color:#333;font-weight:700;margin-bottom:4px">${CO.name}</div>
+          <div style="font-size:10px;color:#666;line-height:1.9">${CO.zip}　${CO.addr}<br>TEL ${CO.tel}　FAX ${CO.fax}<br>登録番号 T3120101071074</div>
           ${showHanko ? `<img src="${HANKO_SRC}" alt="印" style="position:absolute;bottom:-8px;right:-40px;width:75px;height:75px;opacity:0.92">` : ""}
         </div>
         <div style="text-align:right">
-          <div style="font-size:15px;font-weight:900;color:${R};letter-spacing:.1em;line-height:1;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid ${R}">${tab}</div>
+          <div style="font-size:20px;font-weight:900;color:${R};letter-spacing:.15em;line-height:1;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid ${R}">${tab}</div>
           <div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;margin-top:4px">
-            ${metaRows.map(m=>`<div style="display:flex;gap:10px;font-size:8.5px"><span style="color:#bbb;min-width:44px;text-align:right">${m.l}</span><span style="color:#444;font-weight:500;min-width:130px;text-align:right;white-space:nowrap">${m.v}</span></div>`).join('')}
+            ${metaRows.map(m=>`<div style="display:flex;gap:12px;font-size:10.5px;margin-bottom:2px"><span style="color:#999;min-width:56px;text-align:right">${m.l}</span><span style="color:#333;font-weight:500;min-width:140px;text-align:right;white-space:nowrap">${m.v}</span></div>`).join('')}
           </div>
         </div>
       </div>
@@ -720,7 +738,7 @@ function renderPreview(){
   // テーブルヘッダー
   function makeTableHeader(){
     return `<thead><tr>
-      ${[{h:'日付',w:'72px'},{h:'品名・型番',w:'auto'},{h:'仕様',w:'80px'},{h:'数量',w:'40px'},{h:'単位',w:'40px'},{h:'単価',w:'76px'},{h:'金額',w:'84px'},{h:'備考',w:'66px'}].map(({h,w},i)=>`<th style="padding:6px 7px;text-align:${i>=2&&i<=6?'center':'left'};font-size:8px;font-weight:700;color:#fff;letter-spacing:.04em;background:${i===1?R:'#2a2a2a'};width:${w};border-right:${i<7?'1px solid rgba(255,255,255,.12)':'none'};white-space:nowrap">${h}</th>`).join('')}
+      ${[{h:'日付',w:'72px'},{h:'品名・型番',w:'auto'},{h:'仕様',w:'80px'},{h:'数量',w:'40px'},{h:'単位',w:'40px'},{h:'単価',w:'76px'},{h:'金額',w:'84px'},{h:'備考',w:'66px'}].map(({h,w},i)=>`<th style="padding:6px 7px;text-align:${i>=2&&i<=6?'center':'left'};font-size:9.5px;font-weight:700;color:#fff;letter-spacing:.04em;background:${i===1?R:'#2a2a2a'};width:${w};border-right:${i<7?'1px solid rgba(255,255,255,.12)':'none'};white-space:nowrap">${h}</th>`).join('')}
     </tr></thead>`;
   }
 
@@ -728,13 +746,13 @@ function renderPreview(){
   function makeRow(r,idx){
     return `<tr style="background:${idx%2===0?'#fff':'#fafafa'};border-bottom:1px solid #efefef;height:28px">
       <td style="padding:3px 7px;color:#888;font-size:8.5px;white-space:nowrap">${r.workdate?fmtDate(r.workdate):''}</td>
-      <td style="padding:3px 7px;font-weight:500;font-size:9px">${r.name}</td>
-      <td style="padding:3px 7px;color:#777;font-size:8.5px;text-align:center">${r.spec}</td>
-      <td style="padding:3px 7px;text-align:center;font-size:9px">${r.qty}</td>
-      <td style="padding:3px 7px;text-align:center;color:#888;font-size:9px">${r.unit}</td>
-      <td style="padding:3px 7px;text-align:right;color:#555;font-size:9px">¥${fmtNum(r.price)}</td>
-      <td style="padding:3px 7px;text-align:right;font-weight:700;color:#111;font-size:9px">¥${fmtNum(r.qty*r.price)}</td>
-      <td style="padding:3px 7px;color:#bbb;font-size:8px">${r.note}</td>
+      <td style="padding:4px 7px;font-weight:500;font-size:10.5px">${r.name}</td>
+      <td style="padding:4px 7px;color:#777;font-size:10px;text-align:center">${r.spec}</td>
+      <td style="padding:4px 7px;text-align:center;font-size:10.5px">${r.qty}</td>
+      <td style="padding:4px 7px;text-align:center;color:#888;font-size:10.5px">${r.unit}</td>
+      <td style="padding:4px 7px;text-align:right;color:#555;font-size:10.5px">¥${fmtNum(r.price)}</td>
+      <td style="padding:4px 7px;text-align:right;font-weight:700;color:#111;font-size:10.5px">¥${fmtNum(r.qty*r.price)}</td>
+      <td style="padding:4px 7px;color:#999;font-size:9.5px">${r.note}</td>
     </tr>`;
   }
 
@@ -781,7 +799,7 @@ function renderPreview(){
     pages.push(`
       <div style="${pageStyle}padding:25mm 14mm 12mm;font-family:'Noto Sans JP',sans-serif;color:#1a1a1a;background:#fff;width:210mm;min-height:297mm;box-sizing:border-box;box-shadow:0 2px 12px rgba(0,0,0,.2);display:inline-block;vertical-align:top;text-align:left;margin-bottom:24px">
         ${makeHeader()}
-        <table style="width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:8px">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px">
           ${makeTableHeader()}
           <tbody>${rowsHtml}</tbody>
         </table>
