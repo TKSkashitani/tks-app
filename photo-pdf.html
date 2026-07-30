@@ -882,24 +882,125 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   /* ---------- A4レイアウト ---------- */
   function scalePxPerMm(){ return (el.hq.checked ? 200 : 150) / 25.4; }
 
-  function planLayout(list, contentW, availH, capH, maxCellH){
+  // 1グループ分の並べ方（列数を指定して、写真の大きさと必要な高さを出す）
+  function layoutFor(list, cols, contentW, capH, maxCellH, tall){
+    var eff = Math.min(cols, Math.max(list.length, 2));
+    var cellW = (contentW - MM.GAP*(eff-1)) / eff;
+    var needs = list.map(function(p){ return cellW * p.h / p.w; })
+                    .sort(function(a,b){ return a-b; });
+    var need = needs[Math.min(needs.length-1, Math.floor(needs.length * 0.75))];
+    var cellH = Math.min(need, cellW * (tall === undefined ? 1.45 : tall), maxCellH);
+    if (cellH < 16) cellH = 16;
+    var rows = Math.ceil(list.length / eff);
+    return { cols:eff, cellW:cellW, cellH:cellH, rows:rows, area:cellW*cellH,
+             height: rows * (cellH + capH + MM.GAP) - MM.GAP };
+  }
+
+  // 書類全体でページ数が最少になるように、グループごとの列数を決める
+  function planDocument(groups, contentW, capH, maxCellH, headerH){
+    var bottom = MM.H - MM.M - 5;
+    var pageAvail = bottom - MM.M;
     var mode = el.size.value;
-    var candidates = mode === 'large' ? [1] : mode === 'medium' ? [2] : mode === 'small' ? [3] : [1,2,3,4];
-    if (list.length === 1) candidates = [1];
-    var best = null;
-    candidates.forEach(function(cols){
-      var cellW = (contentW - MM.GAP*(cols-1)) / cols;
-      var needs = list.map(function(p){ return cellW * p.h / p.w; })
-                      .sort(function(a,b){ return a-b; });
-      var need = needs[Math.min(needs.length-1, Math.floor(needs.length * 0.75))];
-      var cellH = Math.min(need, cellW * 1.45, maxCellH);
-      if (cellH < 16) cellH = 16;
-      var rows = Math.floor((availH + MM.GAP) / (cellH + capH + MM.GAP));
-      if (rows < 1) { rows = 1; cellH = Math.max(16, availH - capH); }
-      var pages = Math.ceil(list.length / (cols * rows));
-      if (!best || pages < best.pages) best = { cols:cols, cellW:cellW, cellH:cellH, pages:pages };
+    var colsList = mode === 'large' ? [1] : mode === 'medium' ? [2]
+                 : mode === 'small' ? [3] : [1,2,3,4];
+
+    var cands = groups.map(function(g){
+      var arr = [], seen = {};
+      colsList.forEach(function(c){
+        [1.45, 1.0].forEach(function(tall){
+          var l = layoutFor(g.list, c, contentW, capH, maxCellH, tall);
+          var k = l.cols + ':' + Math.round(l.cellH);
+          if (!seen[k]) { seen[k] = 1; arr.push(l); }
+        });
+      });
+      arr.sort(function(a,b){ return b.area - a.area; });
+      return arr;
     });
-    return best;
+
+    var states = [{ pages:1, y:MM.M + headerH, score:0, pick:[] }];
+
+    groups.forEach(function(g, gi){
+      var next = [];
+      states.forEach(function(st){
+        cands[gi].forEach(function(lay){
+          var headH = g.hasTitle ? 8.5 : (gi ? 4 : 0);
+          var h = headH + lay.height;
+          var pages = st.pages, y = st.y;
+          if (h <= pageAvail) {
+            if (y + h > bottom) { pages++; y = MM.M; }
+            y += h + 4;
+          } else {
+            var rowH = lay.cellH + capH + MM.GAP, rem = lay.rows, first = true;
+            while (rem > 0) {
+              var hh = first ? headH : (g.hasTitle ? 8.5 : 4);
+              if (y + hh + lay.cellH + capH > bottom) { pages++; y = MM.M; }
+              y += hh;
+              var fit = Math.max(1, Math.floor((bottom - y + MM.GAP) / rowH));
+              var take = Math.min(fit, rem);
+              y += take * rowH; rem -= take; first = false;
+              if (rem > 0) { pages++; y = MM.M; }
+            }
+            y += 4;
+          }
+          next.push({ pages:pages, y:y, score:st.score + lay.area, pick:st.pick.concat([lay]) });
+        });
+      });
+      next.sort(function(a,b){ return a.pages - b.pages || a.y - b.y || b.score - a.score; });
+      var seen = {}, keep = [];
+      for (var i = 0; i < next.length && keep.length < 24; i++) {
+        var k = next[i].pages + ':' + Math.round(next[i].y);
+        if (seen[k]) continue;
+        seen[k] = 1; keep.push(next[i]);
+      }
+      states = keep;
+    });
+
+    states.sort(function(a,b){ return a.pages - b.pages || b.score - a.score; });
+    return states.length ? states[0].pick : [];
+  }
+
+  // 決まった並べ方でページに配置する。グループは途中で切らない
+  function buildPlan(groups, picks, contentW, capH, headerH){
+    var bottom = MM.H - MM.M - 5;
+    var pageAvail = bottom - MM.M;
+    var pages = [[]];
+    var y = MM.M + headerH;
+
+    function nl(){ pages.push([]); y = MM.M; }
+    function put(op){ pages[pages.length-1].push(op); }
+
+    groups.forEach(function(g, gi){
+      var lay = picks[gi];
+      var rowH = lay.cellH + capH + MM.GAP;
+      var headH0 = g.hasTitle ? 8.5 : (gi ? 4 : 0);
+      var full = headH0 + lay.height;
+
+      if (full <= pageAvail && y + full > bottom) nl();
+
+      var i = 0, first = true;
+      while (i < g.list.length) {
+        var headH = g.hasTitle ? 8.5 : (first ? headH0 : 4);
+        if (y + headH + lay.cellH + capH > bottom) nl();
+        if (g.hasTitle) {
+          put({ t:'title', y:y, text:g.title + (first ? '' : '（続き）') });
+        } else if (headH) {
+          put({ t:'rule', y:y });
+        }
+        y += headH;
+        while (i < g.list.length && y + lay.cellH + capH <= bottom) {
+          for (var c = 0; c < lay.cols && i < g.list.length; c++, i++) {
+            put({ t:'photo', p:g.list[i], x:MM.M + c*(lay.cellW + MM.GAP),
+                  y:y, w:lay.cellW, h:lay.cellH });
+          }
+          y += rowH;
+        }
+        first = false;
+        if (i < g.list.length) nl();
+      }
+      y += 4;
+    });
+
+    return pages;
   }
 
   function renderPages(){
@@ -908,103 +1009,76 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     var bottom = MM.H - MM.M - 5;
     var showCap = el.showCaption.checked;
     var capH = showCap ? 4.6 : 0;
-    var pages = [], ctx = null, y = 0;
+    var maxCellH = bottom - MM.M - 8.5 - capH;
 
-    function newPage(){
-      var c = document.createElement('canvas');
-      c.width = Math.round(MM.W*S); c.height = Math.round(MM.H*S);
-      var g = c.getContext('2d');
-      g.fillStyle = '#ffffff'; g.fillRect(0,0,c.width,c.height);
-      g.scale(S,S); g.imageSmoothingQuality='high'; g.textBaseline='middle';
-      pages.push({canvas:c, ctx:g}); ctx = g; y = MM.M;
-    }
-    function clip(text, maxW){
-      if (ctx.measureText(text).width <= maxW) return text;
-      var t = text;
-      while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0,-1);
-      return t + '…';
-    }
-    function drawCell(p, x, yy, w, h){
-      var s = Math.min(w/p.w, h/p.h);
-      var dw = p.w*s, dh = p.h*s;
-      var dx = x + (w-dw)/2, dy = yy + (h-dh)/2;
-      ctx.drawImage(p.canvas, dx, dy, dw, dh);
-      ctx.strokeStyle = '#c9d1d6'; ctx.lineWidth = 0.25;
-      ctx.strokeRect(dx, dy, dw, dh);
-      if (showCap) {
-        ctx.fillStyle = '#5f6b73'; ctx.textAlign='center';
-        ctx.font = '400 2.9px ' + FONT;
-        ctx.fillText(clip(p.caption || '', w), x + w/2, yy + h + 2.8);
-      }
-    }
-
-    newPage();
+    var groups = [];
+    state.groups.forEach(function(g){
+      var list = g.ids.map(function(id){ return state.photos[id]; }).filter(Boolean);
+      if (list.length) groups.push({ list:list, title:g.title.trim(), hasTitle:!!g.title.trim() });
+    });
 
     var docTitle = el.docTitle.value.trim();
-    if (docTitle || el.showDate.checked) {
-      if (docTitle) {
-        ctx.fillStyle='#12171a'; ctx.textAlign='left';
-        ctx.font = '600 5.6px ' + FONT;
-        ctx.fillText(clip(docTitle, contentW - 34), MM.M, y + 3);
+    var headerH = (docTitle || el.showDate.checked) ? 13 : 0;
+
+    var picks = planDocument(groups, contentW, capH, maxCellH, headerH);
+    var best = groups.length ? buildPlan(groups, picks, contentW, capH, headerH) : [[]];
+
+    var pages = [];
+    best.forEach(function(ops, idx){
+      var c = document.createElement('canvas');
+      c.width = Math.round(MM.W*S); c.height = Math.round(MM.H*S);
+      var ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,c.width,c.height);
+      ctx.scale(S,S); ctx.imageSmoothingQuality = 'high'; ctx.textBaseline = 'middle';
+
+      function clip(text, maxW){
+        if (ctx.measureText(text).width <= maxW) return text;
+        var t = text;
+        while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0,-1);
+        return t + '…';
       }
-      if (el.showDate.checked) {
-        var d = new Date();
-        ctx.fillStyle='#5f6b73'; ctx.textAlign='right';
-        ctx.font = '400 3.2px ' + FONT;
-        ctx.fillText(d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日', MM.W-MM.M, y+3.4);
+
+      if (idx === 0 && headerH) {
+        if (docTitle) {
+          ctx.fillStyle='#12171a'; ctx.textAlign='left';
+          ctx.font = '600 5.6px ' + FONT;
+          ctx.fillText(clip(docTitle, contentW - 34), MM.M, MM.M + 3);
+        }
+        if (el.showDate.checked) {
+          var d = new Date();
+          ctx.fillStyle='#5f6b73'; ctx.textAlign='right';
+          ctx.font = '400 3.2px ' + FONT;
+          ctx.fillText(d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日', MM.W-MM.M, MM.M+3.4);
+        }
+        ctx.fillStyle='#12171a'; ctx.fillRect(MM.M, MM.M + 8, contentW, 0.5);
       }
-      y += 8;
-      ctx.fillStyle='#12171a'; ctx.fillRect(MM.M, y, contentW, 0.5);
-      y += 5;
-    }
 
-    var drawn = 0;
-
-    state.groups.forEach(function(group){
-      var list = group.ids.map(function(id){ return state.photos[id]; }).filter(Boolean);
-      if (!list.length) return;
-
-      var hasTitle = !!group.title.trim();
-      var headH = hasTitle ? 10 : (drawn ? 5 : 0);
-      var maxCellH = MM.H - MM.M*2 - 10 - 5 - capH;
-      var availH = MM.H - MM.M*2 - (hasTitle ? 10 : 5) - 5;
-      var plan = planLayout(list, contentW, availH, capH, maxCellH);
-      var cols = plan.cols, cellW = plan.cellW, cellH = plan.cellH;
-
-      var i = 0, first = true;
-      var rowsNeeded = Math.ceil(list.length / cols);
-
-      while (i < list.length) {
-        var thisHead = hasTitle ? 10 : (first ? headH : 5);
-        // グループ全体が1ページに収まるものは、途中で切らずに丸ごと次ページへ送る
-        var needH = (first && plan.pages === 1)
-          ? thisHead + rowsNeeded * (cellH + capH + MM.GAP) - MM.GAP
-          : thisHead + cellH + capH;
-        if (y + needH > bottom) newPage();
-
-        if (hasTitle) {
-          ctx.fillStyle='#eceff1'; ctx.fillRect(MM.M, y, contentW, 8);
-          ctx.fillStyle='#f2b705'; ctx.fillRect(MM.M, y, 1.6, 8);
+      ops.forEach(function(op){
+        if (op.t === 'title') {
+          ctx.fillStyle='#eceff1'; ctx.fillRect(MM.M, op.y, contentW, 7);
+          ctx.fillStyle='#f2b705'; ctx.fillRect(MM.M, op.y, 1.6, 7);
           ctx.fillStyle='#12171a'; ctx.textAlign='left';
           ctx.font = '600 4.2px ' + FONT;
-          ctx.fillText(clip(group.title.trim() + (first ? '' : '（続き）'), contentW - 8), MM.M + 4, y + 4.3);
-          y += 10;
-        } else if (drawn && y > MM.M + 1) {
-          ctx.fillStyle = '#d5dbdf'; ctx.fillRect(MM.M, y + 2, contentW, 0.3);
-          y += 5;
-        }
-        first = false;
-
-        while (i < list.length && y + cellH + capH <= bottom) {
-          for (var c = 0; c < cols && i < list.length; c++, i++) {
-            drawCell(list[i], MM.M + c*(cellW + MM.GAP), y, cellW, cellH);
+          ctx.fillText(clip(op.text, contentW - 8), MM.M + 4, op.y + 3.8);
+        } else if (op.t === 'rule') {
+          ctx.fillStyle = '#d5dbdf'; ctx.fillRect(MM.M, op.y + 2, contentW, 0.3);
+        } else {
+          var p = op.p;
+          var sc = Math.min(op.w/p.w, op.h/p.h);
+          var dw = p.w*sc, dh = p.h*sc;
+          var dx = op.x + (op.w-dw)/2, dy = op.y + (op.h-dh)/2;
+          ctx.drawImage(p.canvas, dx, dy, dw, dh);
+          ctx.strokeStyle = '#c9d1d6'; ctx.lineWidth = 0.25;
+          ctx.strokeRect(dx, dy, dw, dh);
+          if (showCap) {
+            ctx.fillStyle = '#5f6b73'; ctx.textAlign='center';
+            ctx.font = '400 2.9px ' + FONT;
+            ctx.fillText(clip(p.caption || '', op.w), op.x + op.w/2, op.y + op.h + 2.8);
           }
-          y += cellH + capH + MM.GAP;
         }
-        if (i < list.length) newPage();
-      }
-      drawn++;
-      y += 5;
+      });
+
+      pages.push({ canvas:c, ctx:ctx });
     });
 
     pages.forEach(function(pg, idx){
