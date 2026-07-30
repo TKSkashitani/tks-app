@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>写真まとめPDF</title>
+<title>点検まとめくん</title>
 <script>/* jsPDF 3.x (MIT) — 通信なしで動くようにファイル内に同梱 */
 /** @license
  *
@@ -503,7 +503,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 <body>
 
 <header>
-  <h1>写真まとめPDF</h1>
+  <h1>点検まとめくん</h1>
   <p>写真を選ぶ → 分ける → 保存</p>
 </header>
 
@@ -594,7 +594,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 (function(){
   "use strict";
 
-  var MM = { W:210, H:297, M:12, GAP:4 };
+  var MM = { W:210, H:297, M:10, GAP:3.5 };
   var FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif';
 
   var state = { photos:{}, groups:[], seq:0, pages:[], sel:[], history:[] };
@@ -678,10 +678,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   }
 
   /* ---------- グループ ---------- */
-  function addGroup(){
+  function addGroup(atTop){
     var g = { id: uid('g'), title:'', ids:[] };
-    state.groups.push(g);
+    if (atTop) state.groups.unshift(g); else state.groups.push(g);
     return g;
+  }
+  function focusFirstGroup(){
+    setTimeout(function(){
+      var box = el.groups.firstElementChild;
+      if (!box) return;
+      box.scrollIntoView({ behavior:'smooth', block:'center' });
+      var input = box.querySelector('input[type=text]');
+      if (input) input.focus();
+    }, 60);
   }
   function findGroup(id){
     for (var i=0;i<state.groups.length;i++) if (state.groups[i].id===id) return state.groups[i];
@@ -873,21 +882,30 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   /* ---------- A4レイアウト ---------- */
   function scalePxPerMm(){ return (el.hq.checked ? 200 : 150) / 25.4; }
 
-  function chooseCols(n, portraitMajority){
+  function planLayout(list, contentW, availH, capH, maxCellH){
     var mode = el.size.value;
-    if (mode === 'large') return 1;
-    if (mode === 'medium') return 2;
-    if (mode === 'small') return 3;
-    if (n === 1) return 1;
-    if (n === 2) return portraitMajority ? 2 : 1;
-    if (n <= 8) return 2;
-    return 3;
+    var candidates = mode === 'large' ? [1] : mode === 'medium' ? [2] : mode === 'small' ? [3] : [1,2,3,4];
+    if (list.length === 1) candidates = [1];
+    var best = null;
+    candidates.forEach(function(cols){
+      var cellW = (contentW - MM.GAP*(cols-1)) / cols;
+      var needs = list.map(function(p){ return cellW * p.h / p.w; })
+                      .sort(function(a,b){ return a-b; });
+      var need = needs[Math.min(needs.length-1, Math.floor(needs.length * 0.75))];
+      var cellH = Math.min(need, cellW * 1.45, maxCellH);
+      if (cellH < 16) cellH = 16;
+      var rows = Math.floor((availH + MM.GAP) / (cellH + capH + MM.GAP));
+      if (rows < 1) { rows = 1; cellH = Math.max(16, availH - capH); }
+      var pages = Math.ceil(list.length / (cols * rows));
+      if (!best || pages < best.pages) best = { cols:cols, cellW:cellW, cellH:cellH, pages:pages };
+    });
+    return best;
   }
 
   function renderPages(){
     var S = scalePxPerMm();
     var contentW = MM.W - MM.M*2;
-    var bottom = MM.H - MM.M - 6;
+    var bottom = MM.H - MM.M - 5;
     var showCap = el.showCaption.checked;
     var capH = showCap ? 4.6 : 0;
     var pages = [], ctx = null, y = 0;
@@ -946,24 +964,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       var list = group.ids.map(function(id){ return state.photos[id]; }).filter(Boolean);
       if (!list.length) return;
 
-      var portraits = list.filter(function(p){ return p.h > p.w; }).length;
-      var portraitMajority = portraits > list.length/2;
-      var cols = chooseCols(list.length, portraitMajority);
-      var cellW = (contentW - MM.GAP*(cols-1)) / cols;
-      var cellH = cellW / (portraitMajority ? 3/4 : 4/3);
-      if (list.length === 1) cellH = cellW / (list[0].w / list[0].h);
-
       var hasTitle = !!group.title.trim();
       var headH = hasTitle ? 10 : (drawn ? 5 : 0);
-      var maxCellH = MM.H - MM.M*2 - 10 - 6 - capH;
-      if (cellH > maxCellH) cellH = maxCellH;
-      if (cellH < 18) cellH = 18;
+      var maxCellH = MM.H - MM.M*2 - 10 - 5 - capH;
+      var availH = MM.H - MM.M*2 - (hasTitle ? 10 : 5) - 5;
+      var plan = planLayout(list, contentW, availH, capH, maxCellH);
+      var cols = plan.cols, cellW = plan.cellW, cellH = plan.cellH;
 
       var i = 0, first = true;
+      var rowsNeeded = Math.ceil(list.length / cols);
 
       while (i < list.length) {
         var thisHead = hasTitle ? 10 : (first ? headH : 5);
-        if (y + thisHead + cellH + capH > bottom) newPage();
+        // グループ全体が1ページに収まるものは、途中で切らずに丸ごと次ページへ送る
+        var needH = (first && plan.pages === 1)
+          ? thisHead + rowsNeeded * (cellH + capH + MM.GAP) - MM.GAP
+          : thisHead + cellH + capH;
+        if (y + needH > bottom) newPage();
 
         if (hasTitle) {
           ctx.fillStyle='#eceff1'; ctx.fillRect(MM.M, y, contentW, 8);
@@ -1065,10 +1082,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     var v = el.moveTo.value;
     if (!v || !state.sel.length) return;
     snapshot();
-    var gid = v === '__new' ? addGroup().id : v;
+    var isNew = v === '__new';
+    var gid = isNew ? addGroup(true).id : v;
     state.sel.slice().forEach(function(pid){ movePhoto(pid, gid, null); });
     state.sel = [];
     drawGroups(); schedule();
+    if (isNew) focusFirstGroup();
   });
   el.del.addEventListener('click', function(){
     if (!state.sel.length) return;
@@ -1100,7 +1119,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   window.addEventListener('dragover', function(e){ e.preventDefault(); });
   window.addEventListener('drop', function(e){ e.preventDefault(); });
 
-  el.addGroup.addEventListener('click', function(){ snapshot(); addGroup(); drawGroups(); schedule(); });
+  el.addGroup.addEventListener('click', function(){ snapshot(); addGroup(true); drawGroups(); schedule(); focusFirstGroup(); });
   el.undo.addEventListener('click', undo);
   el.docTitle.addEventListener('input', schedule);
   el.size.addEventListener('change', schedule);
