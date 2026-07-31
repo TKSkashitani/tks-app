@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>点検まとめくん 使い方</title>
+<style>
+  :root{
+    --paper:#f4f6f7; --card:#fff; --ink:#12171a; --muted:#5f6b73;
+    --line:#d5dbdf; --steel:#2c3a42; --accent:#f2b705;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;
+    font-size:15px; line-height:1.85; -webkit-text-size-adjust:100%;
+  }
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;}
+  .wrap{max-width:860px;margin:0 auto;padding:0 20px 64px;}
+
+  /* 銘板ふうの見出し */
+  .plate{
+    background:var(--steel); color:#fff; margin:0 0 28px;
+    border-bottom:4px solid var(--accent); padding:26px 20px 22px;
+  }
+  .plate .inner{max-width:860px;margin:0 auto;padding:0 20px;}
+  .plate .eyebrow{
+    font-size:11px; letter-spacing:.34em; color:var(--accent); margin:0 0 8px;
+  }
+  .plate h1{margin:0;font-size:30px;letter-spacing:.1em;font-weight:600;}
+  .plate p{margin:8px 0 0;color:#b9c4cb;font-size:13px;}
+
+  .lead{
+    background:var(--card); border:1px solid var(--line); border-left:5px solid var(--accent);
+    border-radius:4px; padding:16px 18px; margin:0 0 34px;
+  }
+  .lead p{margin:0 0 8px;}
+  .lead p:last-child{margin-bottom:0;}
+
+  h2.sec{
+    font-size:13px; letter-spacing:.24em; color:var(--muted); font-weight:600;
+    margin:44px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--line);
+  }
+
+  .step{
+    background:var(--card); border:1px solid var(--line); border-radius:6px;
+    padding:20px; margin-bottom:16px;
+    display:grid; grid-template-columns:1fr; gap:18px;
+  }
+  @media(min-width:720px){
+    .step{grid-template-columns:1fr 250px; align-items:start;}
+  }
+  .step h3{
+    margin:0 0 10px; font-size:19px; font-weight:600; letter-spacing:.02em;
+    display:flex; align-items:center; gap:11px;
+  }
+  .step h3 .n{
+    flex:none; width:34px; height:34px; border-radius:3px;
+    background:var(--steel); color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:19px; font-weight:600;
+  }
+  .step p{margin:0 0 10px;}
+  .step ul{margin:10px 0 0;padding-left:1.15em;}
+  .step li{margin-bottom:6px;}
+  .step li:last-child{margin-bottom:0;}
+  .note{
+    font-size:13.5px; color:var(--muted); background:#f4f7f8;
+    border-radius:4px; padding:9px 12px; margin-top:12px;
+  }
+  .shot{margin:0;}
+  .shot svg{width:100%;height:auto;display:block;
+    filter:drop-shadow(0 2px 6px rgba(18,23,26,.12));}
+  .shot figcaption{font-size:12px;color:var(--muted);text-align:center;margin-top:7px;}
+
+  .kbd{
+    display:inline-block; background:var(--steel); color:#fff; border-radius:3px;
+    padding:1px 7px; font-size:13.5px; margin:0 1px;
+  }
+  .kbd.light{background:#fff;color:var(--ink);border:1px solid var(--line);}
+
+  table{width:100%;border-collapse:collapse;background:var(--card);
+    border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:14px;}
+  th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{background:#f4f7f8;font-weight:600;width:38%;}
+  tr:last-child th,tr:last-child td{border-bottom:0;}
+
+  .qa{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 18px;}
+  .qa dt{font-weight:600;margin:14px 0 4px;}
+  .qa dt::before{content:"Q ";color:var(--accent);font-weight:700;}
+  .qa dd{margin:0 0 14px;color:#333c42;}
+
+  footer{margin-top:44px;font-size:12.5px;color:var(--muted);text-align:center;}
+
+  @media print{
+    body{background:#fff;font-size:11.5pt;line-height:1.7;}
+    .plate{padding:16px 0;}
+    .step,.lead,.qa,table{break-inside:avoid;}
+    .wrap{padding-bottom:0;}
+    .shot svg{filter:none;}
+  }
+</style>
+</head>
+<body>
+
+<!-- 画面図の共通部品 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ph" viewBox="0 0 40 40">
+    <rect width="40" height="40" fill="#c9d2d7"/>
+    <circle cx="28" cy="11" r="4" fill="#e3e9ec"/>
+    <path d="M0 40 L13 20 L23 32 L30 25 L40 40 Z" fill="#9fadb5"/>
+  </symbol>
+</svg>
+
+<div class="plate">
+  <div class="inner">
+    <p class="eyebrow">TKS 現場ツール 取扱説明</p>
+    <h1>点検まとめくん</h1>
+    <p>現場で撮った写真を、機器ごとにまとめてA4のPDFにするツールです</p>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="lead">
+    <p>スマホでもパソコンでも使えます。写真は端末の中だけで処理されるので、どこかへ送信されることはありません。</p>
+    <p><strong>開くところ：</strong><span class="mono">https://tkskashitani.github.io/tks-app/photo-pdf.html</span></p>
+  </div>
+
+  <h2 class="sec">はじめに ／ ホーム画面に置く</h2>
+
+  <div class="step">
+    <div>
+      <h3><span class="n">0</span>アイコンを作っておく</h3>
+      <p>毎回URLを打つのは大変なので、最初に一度だけホーム画面に登録します。</p>
+      <ul>
+        <li>iPhone：Safariで上のURLを開く → 下の<span class="kbd light">共有</span>ボタン → <span class="kbd light">ホーム画面に追加</span></li>
+        <li>パソコン：ブックマークに入れておけばOK</li>
+      </ul>
+      <div class="note">一度この操作をしておくと、電波の届かない現場でもアイコンから起動して使えます。</div>
+    </div>
+    <figure class="shot">
+      <svg viewBox="0 0 240 200" role="img" aria-label="ホーム画面のアイコン">
+        <rect width="240" height="200" rx="8" fill="#dfe6e9"/>
+        <rect x="78" y="38" width="84" height="84" rx="19" fill="#2c3a42"/>
+        <rect x="94" y="60" width="52" height="40" rx="3" fill="#fff"/>
+        <rect x="94" y="60" width="52" height="8" fill="#f2b705"/>
+        <use href="#ph" x="99" y="73" width="20" height="20"/>
+        <use href="#ph" x="122" y="73" width="20" height="20"/>
+        <text x="120" y="146" text-anchor="middle" font-size="13" fill="#12171a"
+              font-family="sans-serif">点検まとめくん</text>
+        <text x="120" y="172" text-anchor="middle" font-size="11" fill="#5f6b73"
+              font-family="sans-serif">ホーム画面に追加した状態</text>
+      </svg>
+    </figure>
+  </div>
+
+  <h2 class="sec">基本の使い方（4ステップ）</h2>
+
+  <div class="step">
+    <div>
+      <h3><span class="n">1</span>現場名を入れる</h3>
+      <p>いちばん上の欄に現場名を入れます。ここに入れた名前が、</p>
+      <ul>
+        <li>PDFの1ページ目の見出し</li>
+        <li>保存するときのファイル名（例：<span class="mono">桜夢_20260730.pdf</span>）</li>
+      </ul>
+      <p style="margin-top:10px">の両方になります。空欄のままでも使えます。</p>
+    </div>
+    <figure class="shot">
+      <svg viewBox="0 0 240 300" role="img" aria-label="現場名を入れる画面">
+        <rect width="240" height="300" rx="10" fill="#fff" stroke="#d5dbdf"/>
+        <rect x="1" y="1" width="238" height="34" rx="9" fill="#2c3a42"/>
+        <rect x="1" y="32" width="238" height="3" fill="#f2b705"/>
+        <text x="14" y="23" font-size="12" fill="#fff" font-family="sans-serif">点検まとめくん</text>
+
+        <rect x="14" y="50" width="212" height="150" rx="6" fill="#fff" stroke="#d5dbdf"/>
+        <circle cx="30" cy="68" r="9" fill="#2c3a42"/>
+        <text x="30" y="72" text-anchor="middle" font-size="10" fill="#fff" font-family="sans-serif">1</text>
+        <text x="46" y="72" font-size="11" fill="#12171a" font-family="sans-serif">現場名を入れて、写真を選ぶ</text>
+
+        <text x="28" y="94" font-size="9" fill="#5f6b73" font-family="sans-serif">現場名</text>
+        <rect x="28" y="100" width="184" height="26" rx="4" fill="#fff" stroke="#f2b705" stroke-width="2"/>
+        <text x="37" y="117" font-size="11" fill="#12171a" font-family="sans-serif">桜夢</text>
+
+        <rect x="28" y="138" width="184" height="34" rx="5" fill="#2c3a42"/>
+        <text x="120" y="159" text-anchor="middle" font-size="12" fill="#fff" font-family="sans-serif">写真を選ぶ</text>
+        <text x="120" y="187" text-anchor="middle" font-size="9" fill="#5f6b73" font-family="sans-serif">ここにドラッグしても入ります</text>
+
+        <rect x="14" y="214" width="212" height="70" rx="6" fill="#f4f7f8" stroke="#d5dbdf"/>
+        <circle cx="30" cy="232" r="9" fill="#c9d2d7"/>
+        <text x="30" y="236" text-anchor="middle" font-size="10" fill="#fff" font-family="sans-serif">2</text>
+        <text x="46" y="236" font-size="11" fill="#8a959b" font-family="sans-serif">グループに分ける</text>
+      </svg>
+      <figcaption>①の欄に現場名を入力</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <div>
+      <h3><span class="n">2</span>写真をまとめて選ぶ</h3>
+      <p><span class="kbd">写真を選ぶ</span>を押して、その現場で撮った写真をまとめて選びます。何枚でも一度に選べます。</p>
+      <ul>
+        <li>撮った順に並びます。あとから並べ替えられます</li>
+        <li>足りなければ、あとから追加でもOK</li>
+      </ul>
+      <div class="note">枚数が多いときは読み込みに少し時間がかかります。「読み込み中… 12 / 26」の表示が消えるまで待ってください。</div>
+    </div>
+    <figure class="shot">
+      <svg viewBox="0 0 240 300" role="img" aria-label="写真が並んだ画面">
+        <rect width="240" height="300" rx="10" fill="#fff" stroke="#d5dbdf"/>
+        <rect x="1" y="1" width="238" height="34" rx="9" fill="#2c3a42"/>
+        <rect x="1" y="32" width="238" height="3" fill="#f2b705"/>
+        <text x="14" y="23" font-size="12" fill="#fff" font-family="sans-serif">点検まとめくん</text>
+
+        <rect x="14" y="48" width="212" height="222" rx="6" fill="#fff" stroke="#d5dbdf"/>
+        <circle cx="30" cy="66" r="9" fill="#2c3a42"/>
+        <text x="30" y="70" text-anchor="middle" font-size="10" fill="#fff" font-family="sans-serif">2</text>
+        <text x="46" y="70" font-size="11" fill="#12171a" font-family="sans-serif">グループに分ける</text>
+
+        <rect x="26" y="84" width="188" height="24" rx="4" fill="#f4f7f8" stroke="#d5dbdf"/>
+        <text x="34" y="100" font-size="9" fill="#8a959b" font-family="sans-serif">例）厨房内 現況（空欄でもOK）</text>
+        <text x="26" y="124" font-size="9" fill="#5f6b73" font-family="sans-serif">26 枚</text>
+
+        <g>
+          <use href="#ph" x="26" y="132" width="44" height="44"/><rect x="26" y="132" width="44" height="44" fill="none" stroke="#d5dbdf" stroke-width="2"/>
+          <use href="#ph" x="74" y="132" width="44" height="44"/><rect x="74" y="132" width="44" height="44" fill="none" stroke="#d5dbdf" stroke-width="2"/>
+          <use href="#ph" x="122" y="132" width="44" height="44"/><rect x="122" y="132" width="44" height="44" fill="none" stroke="#d5dbdf" stroke-width="2"/>
+          <use href="#ph" x="170" y="132" width="44" height="44"/><rect x="170" y="132" width="44" height="44" fill="none" stroke="#d5dbdf" stroke-width="2"/>
+          <use href="#ph" x="26" y="180" width="44" height="44"/><rect x="26" y="180" width="44" height="44" fill="none" stroke="#d5dbdf" stroke-width="2"/>
+          <use href="#ph" x="74" y="180" width="44" height="44"/><rect x="74" y="180" width="44" height="44" fill="none" stroke="#d5dbdf" stroke-width="2"/>
+          <use href="#ph" x="122" y="180" width="44" height="44"/><rect x="122" y="180" width="44" height="44" fill="none" stroke="#d5dbdf" stroke-width="2"/>
+          <use href="#ph" x="170" y="180" width="44" height="44"/><rect x="170" y="180" width="44" height="44" fill="none" stroke="#d5dbdf" stroke-width="2"/>
+        </g>
+        <rect x="26" y="232" width="188" height="24" rx="4" fill="#fff" stroke="#d5dbdf"/>
+        <text x="120" y="248" text-anchor="middle" font-size="10" fill="#12171a" font-family="sans-serif">＋ このグループに写真を追加</text>
+      </svg>
+      <figcaption>選んだ写真がずらりと並ぶ</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <div>
+      <h3><span class="n">3</span>機器ごとに分ける</h3>
+      <p>ここがこのツールの中心です。<strong>写真をタップして選ぶ</strong>と、画面の下に黒い操作バーが出ます。</p>
+      <ul>
+        <li>同じ機器の写真を、続けてタップして選ぶ（何枚でも）</li>
+        <li>下のバーの<span class="kbd light">グループへ移動…</span>から<span class="kbd light">＋ 新しいグループへ</span>を選ぶ</li>
+        <li>新しいグループが<strong>一番上</strong>にでき、名前の欄にカーソルが入るので、そのまま「ガステーブル」などと打つ</li>
+      </ul>
+      <p style="margin-top:10px">これを機器の数だけ繰り返します。分け終わると、下に残っているのが未整理の写真です。</p>
+      <div class="note">1枚だけ選んだときは <span class="kbd light">← 前へ</span> <span class="kbd light">後へ →</span> で並び順も直せます。押し間違えたら <span class="kbd light">元に戻す</span> で戻せます（30回分）。</div>
+    </div>
+    <figure class="shot">
+      <svg viewBox="0 0 240 300" role="img" aria-label="写真を選んで操作バーが出た画面">
+        <rect width="240" height="300" rx="10" fill="#fff" stroke="#d5dbdf"/>
+        <rect x="1" y="1" width="238" height="34" rx="9" fill="#2c3a42"/>
+        <rect x="1" y="32" width="238" height="3" fill="#f2b705"/>
+        <text x="14" y="23" font-size="12" fill="#fff" font-family="sans-serif">点検まとめくん</text>
+
+        <g>
+          <use href="#ph" x="26" y="60" width="44" height="44"/>
+          <rect x="26" y="60" width="44" height="44" fill="none" stroke="#f2b705" stroke-width="3"/>
+          <circle cx="34" cy="68" r="7" fill="#f2b705"/>
+          <path d="M31 68 l2.5 2.5 L38 65" stroke="#12171a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+
+          <use href="#ph" x="74" y="60" width="44" height="44"/>
+          <rect x="74" y="60" width="44" height="44" fill="none" stroke="#f2b705" stroke-width="3"/>
+          <circle cx="82" cy="68" r="7" fill="#f2b705"/>
+          <path d="M79 68 l2.5 2.5 L86 65" stroke="#12171a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+
+          <use href="#ph" x="122" y="60" width="44" height="44"/><rect x="122" y="60" width="44" height="44" fill="none" stroke="#d5dbdf" stroke-width="2"/>
+          <use href="#ph" x="170" y="60" width="44" height="44"/><rect x="170" y="60" width="44" height="44" fill="none" stroke="#d5dbdf" stroke-width="2"/>
+          <use href="#ph" x="26" y="108" width="44" height="44"/><rect x="26" y="108" width="44" height="44" fill="none" stroke="#d5dbdf" stroke-width="2"/>
+          <use href="#ph" x="74" y="108" width="44" height="44"/><rect x="74" y="108" width="44" height="44" fill="none" stroke="#d5dbdf" stroke-width="2"/>
+        </g>
+
+        <rect x="1" y="188" width="238" height="111" rx="9" fill="#2c3a42"/>
+        <rect x="1" y="188" width="238" height="3" fill="#f2b705"/>
+        <text x="16" y="209" font-size="11" fill="#fff" font-family="sans-serif">2枚を選択中</text>
+
+        <rect x="16" y="220" width="98" height="26" rx="4" fill="#fff"/>
+        <text x="65" y="237" text-anchor="middle" font-size="10" fill="#12171a" font-family="sans-serif">グループへ移動…</text>
+        <rect x="122" y="220" width="46" height="26" rx="4" fill="#8c2f24"/>
+        <text x="145" y="237" text-anchor="middle" font-size="10" fill="#fff" font-family="sans-serif">削除</text>
+        <rect x="176" y="220" width="48" height="26" rx="4" fill="#fff"/>
+        <text x="200" y="237" text-anchor="middle" font-size="9" fill="#12171a" font-family="sans-serif">選択をやめる</text>
+
+        <rect x="16" y="254" width="152" height="26" rx="4" fill="#f2b705"/>
+        <text x="92" y="271" text-anchor="middle" font-size="10" fill="#12171a" font-family="sans-serif">＋ 新しいグループへ</text>
+      </svg>
+      <figcaption>選ぶと下に操作バーが出る</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <div>
+      <h3><span class="n">4</span>PDFを保存する</h3>
+      <p>画面の一番下にある<span class="kbd">PDFを保存（全◯ページ）</span>を押すと、PDFができます。押す前に、右（スマホでは下）のプレビューで仕上がりを確認できます。</p>
+      <ul>
+        <li>iPhone：ダウンロードした後、「ファイル」アプリに保存されます</li>
+        <li>そのままメールやチャットに添付できます</li>
+      </ul>
+      <div class="note">ページ数は自動で最少になるよう計算しています。写真の大きさは、枚数と縦横の向きに応じて1〜4列で自動調整されます。</div>
+    </div>
+    <figure class="shot">
+      <svg viewBox="0 0 240 300" role="img" aria-label="保存ボタンとA4プレビュー">
+        <rect width="240" height="300" rx="10" fill="#fff" stroke="#d5dbdf"/>
+
+        <text x="16" y="26" font-size="10" fill="#5f6b73" font-family="sans-serif">仕上がりプレビュー</text>
+        <rect x="60" y="34" width="120" height="170" fill="#fff" stroke="#d5dbdf"/>
+        <text x="70" y="50" font-size="8" fill="#12171a" font-family="sans-serif" font-weight="bold">桜夢</text>
+        <text x="170" y="50" font-size="6" fill="#5f6b73" text-anchor="end" font-family="sans-serif">2026年7月30日</text>
+        <rect x="70" y="55" width="100" height="1" fill="#12171a"/>
+
+        <rect x="70" y="62" width="100" height="9" fill="#eceff1"/>
+        <rect x="70" y="62" width="2.5" height="9" fill="#f2b705"/>
+        <text x="76" y="69" font-size="6" fill="#12171a" font-family="sans-serif">ガステーブル</text>
+        <use href="#ph" x="70" y="75" width="48" height="34"/>
+        <use href="#ph" x="122" y="75" width="48" height="34"/>
+
+        <rect x="70" y="115" width="100" height="9" fill="#eceff1"/>
+        <rect x="70" y="115" width="2.5" height="9" fill="#f2b705"/>
+        <text x="76" y="122" font-size="6" fill="#12171a" font-family="sans-serif">冷凍冷蔵庫</text>
+        <use href="#ph" x="70" y="128" width="32" height="24"/>
+        <use href="#ph" x="104" y="128" width="32" height="24"/>
+        <use href="#ph" x="138" y="128" width="32" height="24"/>
+        <use href="#ph" x="70" y="154" width="32" height="24"/>
+        <use href="#ph" x="104" y="154" width="32" height="24"/>
+        <use href="#ph" x="138" y="154" width="32" height="24"/>
+        <text x="120" y="197" text-anchor="middle" font-size="6" fill="#8a959b" font-family="sans-serif">1 / 5</text>
+
+        <rect x="1" y="228" width="238" height="71" rx="9" fill="#fff" stroke="#d5dbdf"/>
+        <rect x="16" y="244" width="208" height="32" rx="5" fill="#2c3a42"/>
+        <text x="120" y="264" text-anchor="middle" font-size="12" fill="#fff" font-family="sans-serif">PDFを保存（全5ページ）</text>
+        <text x="120" y="288" text-anchor="middle" font-size="9" fill="#5f6b73" font-family="sans-serif">写真 26 枚</text>
+      </svg>
+      <figcaption>プレビューがそのままPDFになる</figcaption>
+    </figure>
+  </div>
+
+  <h2 class="sec">仕上がりのきまり</h2>
+
+  <table>
+    <tr>
+      <th>グループの見出し</th>
+      <td>名前を入れると、グレーの帯に黄色い線が付いた見出しが入ります。空欄なら見出しは出ず、薄い区切り線だけになります。</td>
+    </tr>
+    <tr>
+      <th>写真の並べ方</th>
+      <td>縦向き・横向きと枚数を見て、1〜4列を自動で選びます。写真は切り抜かず、全体が入るように配置します（型番シールが切れません）。</td>
+    </tr>
+    <tr>
+      <th>ページの区切り</th>
+      <td>1つのグループが途中で切れないように配置します。今のページに入りきらないときは、丸ごと次のページの頭から始まります。</td>
+    </tr>
+    <tr>
+      <th>「（続き）」の表示</th>
+      <td>1ページに入りきらない枚数のグループだけ、次のページに続きが出ます。そのときは見出しに「（続き）」が付きます。</td>
+    </tr>
+  </table>
+
+  <h2 class="sec">詳しい設定（ふだんは触らなくて大丈夫）</h2>
+
+  <table>
+    <tr><th>写真の大きさ</th><td>自動のままで最適に並びます。もっと詰めたいときは「小さめ（3列）」、大きく見せたいときは「大きめ（1列）」を選べます。</td></tr>
+    <tr><th>写真の下にファイル名を入れる</th><td>各写真の下に、撮影ファイル名を小さく入れます。名前は自由に打ち直せます。</td></tr>
+    <tr><th>1ページ目に日付を入れる</th><td>作成した日の日付が右上に入ります。不要ならオフに。</td></tr>
+    <tr><th>高画質で書き出す</th><td>細かい文字を読ませたいときに使います。そのぶんファイルが重くなります。</td></tr>
+  </table>
+
+  <h2 class="sec">よくある質問</h2>
+
+  <dl class="qa">
+    <dt>電波が届かない現場でも使えますか？</dt>
+    <dd>使えます。ただし、一度は電波のあるところで開いておく必要があります（その時に本体が端末に保存されます）。ホーム画面に追加してあれば、あとは圏外でも動きます。</dd>
+
+    <dt>写真はどこかに送信されますか？</dt>
+    <dd>されません。写真の読み込みからPDF作成まで、すべて端末の中だけで行われます。</dd>
+
+    <dt>グループの順番を入れ替えたい</dt>
+    <dd>グループ名の右にある <span class="kbd light">↑</span> <span class="kbd light">↓</span> で動かせます。PDFにもその順番で出ます。</dd>
+
+    <dt>間違えて写真を消してしまった</dt>
+    <dd>「グループに分ける」の右上にある <span class="kbd light">元に戻す</span> を押してください。直前の操作から30回分さかのぼれます。</dd>
+
+    <dt>ページ数をもっと減らしたい</dt>
+    <dd>「詳しい設定 → 写真の大きさ → 小さめ（3列）」にしてください。ただし写真が小さくなるので、銘板の文字が読めるかは確認してください。</dd>
+
+    <dt>次の現場を続けてやりたい</dt>
+    <dd>保存が終わったら「詳しい設定 → 写真をすべて消す」でまっさらにできます。画面を開き直しても同じです。</dd>
+  </dl>
+
+  <footer>
+    株式会社トータルキッチンシステム ／ 点検まとめくん 使い方<br>
+    うまく動かないときや「こうしてほしい」があれば、遠慮なく連絡してください。
+  </footer>
+</div>
+
+</body>
+</html>
