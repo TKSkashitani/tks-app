@@ -589,6 +589,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       <select id="moveTo" aria-label="グループへ移動">
         <option value="">グループへ移動…</option>
       </select>
+      <button class="ghost mini" id="ocr" style="display:none">型式を読み取る</button>
       <button class="danger mini" id="del">削除</button>
       <button class="ghost mini" id="deselect">選択をやめる</button>
     </div>
@@ -599,6 +600,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 (function(){
   "use strict";
 
+  /* ───── 銘板よみとりの設定（GASのウェブアプリURLと合言葉を入れてください） ───── */
+  var OCR = {
+    url: '',   // 例）https://script.google.com/macros/s/AKfycb.../exec
+    key: ''    // GAS側の SHARED_SECRET と同じ文字列
+  };
+  /* ─────────────────────────────────────────────────────────── */
+
   var MM = { W:210, H:297, M:10, GAP:3.5 };
   var FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif';
 
@@ -607,7 +615,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   var el = {};
   ['drop','pick','file','groups','addGroup','undo','docTitle','size','showCaption','showDate','hq',
    'clear','preview','export','status','saveBar','actionBar','selInfo','mvPrev','mvNext','moveTo',
-   'del','deselect','tip'].forEach(function(id){ el[id] = document.getElementById(id); });
+   'del','deselect','tip','ocr'].forEach(function(id){ el[id] = document.getElementById(id); });
 
   function uid(p){ state.seq += 1; return p + state.seq; }
   function totalPhotos(){ var n=0; state.groups.forEach(function(g){ n += g.ids.length; }); return n; }
@@ -751,6 +759,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       el.saveBar.classList.add('hidden');
       el.selInfo.textContent = n + '枚を選択中';
       el.mvPrev.style.display = el.mvNext.style.display = (n === 1 ? '' : 'none');
+      el.ocr.disabled = false;
+      el.ocr.style.display = (n === 1 && OCR.url) ? '' : 'none';
       el.moveTo.innerHTML = '';
       var head = document.createElement('option');
       head.value = ''; head.textContent = 'グループへ移動…';
@@ -1229,6 +1239,50 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     drawGroups(); schedule();
   });
   el.deselect.addEventListener('click', clearSel);
+
+  /* ───── 銘板よみとり ───── */
+  el.ocr.addEventListener('click', function(){
+    if (state.sel.length !== 1) return;
+    if (!OCR.url) { el.selInfo.textContent = '読み取りの設定がされていません'; return; }
+
+    var pid = state.sel[0];
+    var p = state.photos[pid];
+    var g = groupOf(pid);
+    if (!p || !g) return;
+
+    el.ocr.disabled = true;
+    el.selInfo.textContent = '銘板を読み取っています…';
+
+    var c = document.createElement('canvas');
+    var s = Math.min(1, 1400 / Math.max(p.w, p.h));
+    c.width = Math.round(p.w * s);
+    c.height = Math.round(p.h * s);
+    c.getContext('2d').drawImage(p.canvas, 0, 0, c.width, c.height);
+    var data = c.toDataURL('image/jpeg', 0.82).split(',')[1];
+
+    fetch(OCR.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ secret: OCR.key, image: data, mime: 'image/jpeg' })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (!j || !j.ok || !j.text) {
+        el.selInfo.textContent = (j && j.error) ? ('読み取れません：' + j.error) : '銘板の文字を読み取れませんでした';
+        el.ocr.disabled = false;
+        return;
+      }
+      snapshot();
+      var target = findGroup(g.id);
+      if (target) target.comment = target.comment ? (target.comment + '\n' + j.text) : j.text;
+      state.sel = [];
+      drawGroups(); schedule();
+    })
+    .catch(function(){
+      el.selInfo.textContent = '電波が届いていないようです。あとで読み取るか、手で入力してください';
+      el.ocr.disabled = false;
+    });
+  });
 
   /* ---------- 入力 ---------- */
   var pickTarget = null;
