@@ -400,6 +400,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   }
   header h1{font-size:16px;margin:0;letter-spacing:.08em;font-weight:600;}
   header p{margin:0;font-size:12px;color:#b9c4cb;}
+  header p.ver{margin-left:auto;font-size:11px;color:#8fa0aa;letter-spacing:.06em;}
 
   main{max-width:1180px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns:1fr;}
   @media(min-width:980px){
@@ -525,6 +526,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 <header>
   <h1>点検まとめくん</h1>
   <p>写真を選ぶ → 分ける → 保存</p>
+  <p class="ver mono" id="ver"></p>
 </header>
 
 <main>
@@ -626,6 +628,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   };
   /* ─────────────────────────────────────────────────────────── */
 
+  var VERSION = 'v1.6  2026-08-05';
+
   var MM = { W:210, H:297, M:10, GAP:3.5 };
   var FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif';
 
@@ -634,7 +638,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   var el = {};
   ['drop','pick','file','groups','addGroup','undo','docTitle','size','showCaption','showDate','hq',
    'clear','preview','export','status','saveBar','actionBar','selInfo','mvPrev','mvNext','moveTo',
-   'del','deselect','tip','ocr','banner'].forEach(function(id){ el[id] = document.getElementById(id); });
+   'del','deselect','tip','ocr','banner','ver'].forEach(function(id){ el[id] = document.getElementById(id); });
 
   function uid(p){ state.seq += 1; return p + state.seq; }
 
@@ -1304,6 +1308,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       ctx.fillStyle='#8a959b'; ctx.textAlign='center';
       ctx.font = '400 3px ' + FONT;
       ctx.fillText(pageNo + ' / ' + total, MM.W/2, MM.H - MM.M + 3);
+      ctx.textAlign='right'; ctx.font = '400 2.4px ' + FONT; ctx.fillStyle='#b3bcc1';
+      ctx.fillText('点検まとめくん ' + VERSION, MM.W - MM.M, MM.H - MM.M + 3);
     }
 
     var pages = [];
@@ -1544,6 +1550,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   el.showCaption.addEventListener('change', function(){ drawGroups(); schedule(); });
   el.export.addEventListener('click', exportPDF);
   el.clear.addEventListener('click', startFresh);
+
+  el.ver.textContent = VERSION;
 
   addGroup();
   drawGroups();
