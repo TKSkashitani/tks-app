@@ -657,14 +657,14 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
 (function(){
   "use strict";
 
-  /* ───── 銘板よみとりの設定（GoogleのAI(Gemini)へ直接つなぎます） ───── */
+  /* ───── 銘板よみとりの設定（サーバー(GAS)経由。URL・合言葉は組み込み済み） ───── */
   var OCR = {
-    apiKey: '',                 // Google AI Studio の API キー（端末内だけに保存）
-    model:  'gemini-2.5-flash'  // 使うAIモデル
+    url:    'https://script.google.com/macros/s/AKfycbyMaFQ3GzSqPc7kaBAewEBPOEfHYbXimt9AE5pJGvzpCMfW5FAilQx5G0yGVLakRQlj/exec',
+    secret: 'f45536bb9555'
   };
   /* ─────────────────────────────────────────────────────────── */
 
-  var VERSION = 'v1.8  2026-08-13 (銘板AI読取・直結／複数人まとめ)';
+  var VERSION = 'v1.9  2026-08-13 (銘板AI読取・サーバー経由／複数人まとめ)';
 
   var MM = { W:210, H:297, M:10, GAP:3.5 };
   var FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif';
@@ -1828,15 +1828,15 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
     setTimeout(function(){ try{ manual.focus(); }catch(e){} }, 30);
   }
 
-  /* OCR設定（APIキー。端末内に保存） */
+  /* OCR設定（サーバーURL・合言葉。通常は変更不要。保存すると端末内で上書き） */
   function loadOcrCfg(){
     tx('meta','readonly',function(st){ return st.get('ocrcfg'); }).then(function(c){
-      if(c){ if(c.apiKey)OCR.apiKey=c.apiKey; if(c.model)OCR.model=c.model; }
+      if(c){ if(c.url)OCR.url=c.url; if(c.secret)OCR.secret=c.secret; }
     }).catch(function(){});
   }
-  function saveOcrCfg(apiKey,model){
-    OCR.apiKey=apiKey; if(model)OCR.model=model;
-    return tx('meta','readwrite',function(st){ return st.put({apiKey:apiKey,model:OCR.model},'ocrcfg'); }).catch(function(){});
+  function saveOcrCfg(url,secret){
+    if(url)OCR.url=url; if(secret)OCR.secret=secret;
+    return tx('meta','readwrite',function(st){ return st.put({url:OCR.url,secret:OCR.secret},'ocrcfg'); }).catch(function(){});
   }
   function showOcrSettings(){
     var ov=document.createElement('div'); ov.className='kpick-ov';
@@ -1844,14 +1844,16 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
     var head=document.createElement('div'); head.className='kpick-h'; head.textContent='銘板読み取りの設定';
     box.appendChild(head);
     var note=document.createElement('div'); note.className='kpick-read';
-    note.innerHTML='GoogleのAIキー（APIキー）を1回だけ貼り付ければ、写真から型式を読み取れます。<br>キーは<b>この端末の中だけ</b>に保存され、他の人やインターネットには出ません。<br>キーの取得先：aistudio.google.com →「APIキーを作成」';
+    note.innerHTML='読み取りに必要な設定は<b>すでに組み込み済み</b>です。ふだんは変更不要で、写真の「型式を読み取る」を押すだけで使えます。<br>サーバーを変えるときだけ、下のURL・合言葉を入れ替えて保存してください。';
     box.appendChild(note);
-    var k=document.createElement('input'); k.type='text'; k.className='kpick-input'; k.placeholder='APIキーを貼り付け（AIza… で始まる文字列）'; k.value=OCR.apiKey||'';
+    var u=document.createElement('input'); u.type='text'; u.className='kpick-input'; u.placeholder='サーバーURL（…/exec）'; u.value=OCR.url||'';
+    u.setAttribute('autocapitalize','off'); u.setAttribute('autocorrect','off'); u.spellcheck=false;
+    var k=document.createElement('input'); k.type='text'; k.className='kpick-input'; k.placeholder='合言葉'; k.value=OCR.secret||'';
     k.setAttribute('autocapitalize','off'); k.setAttribute('autocorrect','off'); k.spellcheck=false;
-    box.appendChild(k);
+    box.appendChild(u); box.appendChild(k);
     var acts=document.createElement('div'); acts.className='kpick-acts';
     var save=document.createElement('button'); save.className='ghost'; save.textContent='保存';
-    save.addEventListener('click', function(){ saveOcrCfg(k.value.trim(), OCR.model); if(ov.parentNode)ov.parentNode.removeChild(ov); if(el.selInfo)el.selInfo.textContent='設定を保存しました'; });
+    save.addEventListener('click', function(){ saveOcrCfg(u.value.trim(), k.value.trim()); if(ov.parentNode)ov.parentNode.removeChild(ov); if(el.selInfo)el.selInfo.textContent='設定を保存しました'; });
     var cancel=document.createElement('button'); cancel.className='ghost'; cancel.textContent='閉じる';
     cancel.addEventListener('click', function(){ if(ov.parentNode)ov.parentNode.removeChild(ov); });
     acts.appendChild(save); acts.appendChild(cancel); box.appendChild(acts);
@@ -1859,10 +1861,10 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
     ov.appendChild(box); document.body.appendChild(ov);
   }
 
-  /* 銘板を読み取る（写真1枚→GoogleのAI(Gemini)→候補ピッカー） */
+  /* 銘板を読み取る（写真1枚→サーバー(GAS)→GoogleのAI→候補ピッカー） */
   function runOcr(pid){
     if(!pid) return;
-    if(!OCR.apiKey){ showOcrSettings(); return; }
+    if(!OCR.url){ showOcrSettings(); return; }
     var p=state.photos[pid], g=groupOf(pid);
     if(!p||!g) return;
     if(el.ocr) el.ocr.disabled=true;
@@ -1878,29 +1880,17 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
       }
       return Promise.resolve({ data:p.canvas.toDataURL('image/jpeg',0.95).split(',')[1], mime:'image/jpeg' });
     }
-    var PROMPT='これは業務用厨房機器の銘板（メーカーの型式ラベル）の写真です。写っている文字だけを正確に読み取り、次の形式で答えてください。読み取れない項目は「不明」と書き、推測はしないでください。\nメーカー：\n品名：\n型式：\n製造番号：';
     sourceImage().then(function(img){
-      var url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(OCR.model||'gemini-2.5-flash')+':generateContent?key='+encodeURIComponent(OCR.apiKey);
-      var payload={ contents:[{ parts:[ {text:PROMPT}, {inline_data:{ mime_type:img.mime||'image/jpeg', data:img.data }} ] }] };
-      return fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      return fetch(OCR.url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({ secret:OCR.secret, image:img.data, mime:img.mime }) });
     })
-    .then(function(r){ return r.json().then(function(j){ return {status:r.status, j:j}; }); })
-    .then(function(res){
+    .then(function(r){ return r.json(); })
+    .then(function(j){
       if(el.ocr) el.ocr.disabled=false;
-      var j=res.j;
-      if(res.status!==200){
-        var msg=(j&&j.error&&j.error.message)?j.error.message:('エラー '+res.status);
-        if(/API key not valid/i.test(msg)) msg='APIキーが正しくないようです。設定を確認してください';
-        if(el.selInfo) el.selInfo.textContent='読み取れません：'+msg;
-        return;
-      }
-      var text='';
-      try{ text=j.candidates[0].content.parts.map(function(x){return x.text||'';}).join(''); }catch(e){}
-      if(!text){ if(el.selInfo) el.selInfo.textContent='銘板の文字を読み取れませんでした'; return; }
+      if(!j || !j.ok || !j.text){ if(el.selInfo) el.selInfo.textContent=(j&&j.error)?('読み取れません：'+j.error):'銘板の文字を読み取れませんでした'; return; }
       if(el.selInfo) el.selInfo.textContent='候補から型式を選んでください';
-      showModelPicker(text, g.id);
+      showModelPicker(j.text, g.id);
     })
-    .catch(function(){ if(el.ocr) el.ocr.disabled=false; if(el.selInfo) el.selInfo.textContent='電波が届いていないか、キーの設定に問題があるようです。設定を確認してください'; });
+    .catch(function(){ if(el.ocr) el.ocr.disabled=false; if(el.selInfo) el.selInfo.textContent='電波が届いていないようです。あとで読み取るか、手で入力してください'; });
   }
 
   el.ocr.addEventListener('click', function(){ if(state.sel.length===1) runOcr(state.sel[0]); });
