@@ -664,7 +664,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
   };
   /* ─────────────────────────────────────────────────────────── */
 
-  var VERSION = 'v1.9  2026-08-13 (銘板AI読取・サーバー経由／複数人まとめ)';
+  var VERSION = 'v2.1  2026-08-13 (グループ毎の写真選択ボタン追加)';
 
   var MM = { W:210, H:297, M:10, GAP:3.5 };
   var FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif';
@@ -1235,6 +1235,15 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
       cmt.addEventListener('input', function(){ g.comment = cmt.value; schedule(); });
       body.appendChild(cmt);
 
+      var pickRow = document.createElement('button');
+      pickRow.type = 'button';
+      pickRow.className = 'ghost';
+      pickRow.style.width = '100%';
+      pickRow.style.marginTop = '6px';
+      pickRow.textContent = '＋ このグループに写真を選ぶ';
+      pickRow.addEventListener('click', function(){ pickTarget = g.id; el.file.value=''; el.file.click(); });
+      body.appendChild(pickRow);
+
       var count = document.createElement('div');
       count.className = 'count';
       count.innerHTML = '<span class="mono">' + g.ids.length + '</span> 枚';
@@ -1769,9 +1778,29 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
     return res;
   }
 
+  function ocrField(text, labels){
+    var lines=String(text||'').split(/\r?\n/);
+    for(var i=0;i<lines.length;i++){
+      for(var j=0;j<labels.length;j++){
+        var m=lines[i].match(new RegExp('^\\s*'+labels[j]+'\\s*[:：]\\s*(.*)$'));
+        if(m){ var v=(m[1]||'').trim(); return /^(不明|なし|-+|—+)$/.test(v) ? '' : v; }
+      }
+    }
+    return '';
+  }
+  function buildCommentLine(maker,model,serial){
+    var head=[maker,model].filter(function(x){return x;}).join(' ');
+    if(serial) head += (head?'　':'') + '製造番号：' + serial;
+    return head;
+  }
   function showModelPicker(rawText, groupId){
     var models=extractModels(rawText);
     var primary=models[0] || (String(rawText||'').trim().split(/\r?\n/)[0]) || '';
+    var F={
+      maker:  ocrField(rawText,['メーカー','製造元','ブランド']),
+      name:   ocrField(rawText,['品名','製品名','商品名','名称']),
+      serial: ocrField(rawText,['製造番号','製番','シリアル番号','シリアルナンバー','シリアル'])
+    };
     var ov=document.createElement('div'); ov.className='kpick-ov';
     var box=document.createElement('div'); box.className='kpick';
     function cleanup(){ if(ov.parentNode) ov.parentNode.removeChild(ov); }
@@ -1788,6 +1817,14 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
       var t=findGroup(groupId); if(t){ snapshot(); t.comment = t.comment ? (t.comment + '\n' + str) : str; }
       cleanup(); state.sel=[]; drawGroups(); schedule();
     }
+    function confirmRecord(name, maker, model, serial){
+      var t=findGroup(groupId); if(!t){ cleanup(); return; }
+      snapshot();
+      if(name) t.title = name;                       /* 機器名(商品名) → グループのタイトル */
+      var line=buildCommentLine(maker, model, serial); /* メーカー・型式・製造番号 → コメント */
+      if(line) t.comment = t.comment ? (t.comment + '\n' + line) : line;
+      cleanup(); state.sel=[]; drawGroups(); schedule();
+    }
     function renderFor(query){
       listWrap.innerHTML='';
       var res=matchMaster(query,8).filter(function(r){ return r.sc>=0.5; });
@@ -1801,7 +1838,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
         var bb=document.createElement('b'); bb.textContent=r.k;
         var sp=document.createElement('span'); sp.textContent=r.m + (r.n ? ('　｜　'+r.n) : '');
         b.appendChild(bb); b.appendChild(sp);
-        b.addEventListener('click', function(){ confirmModel((r.m?r.m+' ':'') + (r.n?r.n+' ':'') + r.k); });
+        b.addEventListener('click', function(){ confirmRecord(r.n||F.name, r.m||F.maker, r.k, F.serial); });
         listWrap.appendChild(b);
       });
     }
@@ -1815,7 +1852,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
 
     var acts=document.createElement('div'); acts.className='kpick-acts';
     var useRaw=document.createElement('button'); useRaw.className='ghost'; useRaw.textContent='この文字で確定';
-    useRaw.addEventListener('click', function(){ confirmModel(manual.value || rawText); });
+    useRaw.addEventListener('click', function(){ confirmRecord(F.name, F.maker, (manual.value.trim()||primary), F.serial); });
     var useAll=document.createElement('button'); useAll.className='ghost'; useAll.textContent='読取結果を全部入れる';
     useAll.addEventListener('click', function(){ confirmModel(rawText); });
     var cancel=document.createElement('button'); cancel.className='ghost'; cancel.textContent='やめる';
