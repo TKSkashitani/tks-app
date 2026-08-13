@@ -664,7 +664,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
   };
   /* ─────────────────────────────────────────────────────────── */
 
-  var VERSION = 'v2.2  2026-08-13 (読取り高速化・進捗表示・FGDBW20S追加)';
+  var VERSION = 'v2.3  2026-08-13 (読取り高速化・軽量モデル・製番改行)';
 
   var MM = { W:210, H:297, M:10, GAP:3.5 };
   var FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif';
@@ -1790,7 +1790,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
   }
   function buildCommentLine(maker,model,serial){
     var head=[maker,model].filter(function(x){return x;}).join(' ');
-    if(serial) head += (head?'　':'') + '製造番号：' + serial;
+    if(serial) head += (head?'\n':'') + '製造番号：' + serial;
     return head;
   }
   function showModelPicker(rawText, groupId){
