@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>下請けPDF取込 UIモック</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{ --R:#E8000D; --ink:#1a1a1a; --line:#e5e5e5; --bg:#f4f4f5; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--ink);padding:20px;line-height:1.6}
+.wrap{max-width:900px;margin:0 auto}
+.note{background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:20px;color:#795548}
+.card{background:#fff;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card-title{font-size:15px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-title .bar{width:4px;height:20px;background:var(--R);border-radius:2px}
+.step-badge{display:inline-block;background:var(--R);color:#fff;font-size:11px;font-weight:700;padding:2px 10px;border-radius:12px;margin-right:8px}
+
+/* アップロードゾーン */
+.drop{border:2px dashed var(--line);border-radius:10px;padding:40px 20px;text-align:center;cursor:pointer;transition:.2s;background:#fafafa}
+.drop:hover{border-color:var(--R);background:#fff5f5}
+.drop-icon{font-size:40px;margin-bottom:10px}
+.drop-main{font-size:15px;font-weight:700;margin-bottom:4px}
+.drop-sub{font-size:12px;color:#999}
+
+/* 掛け率バー */
+.rate-bar{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:14px 16px;background:#f0faf4;border:1.5px solid #1a7a4a;border-radius:8px;margin-bottom:16px}
+.rate-mode{display:flex;gap:8px}
+.rate-mode button{padding:6px 16px;border:1.5px solid #1a7a4a;background:#fff;color:#1a7a4a;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.rate-mode button.active{background:#1a7a4a;color:#fff}
+.rate-input{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600}
+.rate-input input{width:70px;padding:6px 8px;border:1.5px solid #ccc;border-radius:6px;font-size:14px;text-align:center;font-family:inherit}
+
+/* テーブル */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#2a2a2a;color:#fff;padding:8px 10px;text-align:left;font-size:12px;font-weight:700}
+th:nth-child(1){background:var(--R)}
+td{padding:6px 10px;border-bottom:1px solid var(--line)}
+td input{width:100%;padding:5px 7px;border:1px solid var(--line);border-radius:5px;font-size:13px;font-family:inherit}
+td.num input{text-align:right}
+td.rate input{width:60px;text-align:center}
+.out-price{text-align:right;font-weight:700;color:var(--ink)}
+.row-del{color:#bbb;cursor:pointer;text-align:center}
+.row-del:hover{color:var(--R)}
+
+.summary{display:flex;justify-content:flex-end;gap:24px;margin-top:14px;font-size:14px}
+.summary .lbl{color:#888}
+.summary .val{font-weight:700;min-width:100px;text-align:right}
+.summary .total{color:var(--R);font-size:18px;font-weight:900}
+
+.btns{display:flex;gap:12px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+.btn{padding:10px 22px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;border:none}
+.btn-ghost{background:#fff;color:var(--ink);border:2px solid var(--ink)}
+.btn-green{background:#1a7a4a;color:#fff}
+.btn-add{background:#fff;color:var(--R);border:2px dashed var(--R);font-size:12px;padding:8px 16px}
+
+.hidden{display:none}
+.loading{text-align:center;padding:30px;color:#888}
+.spinner{display:inline-block;width:24px;height:24px;border:3px solid #eee;border-top-color:var(--R);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.filename{font-size:13px;color:#1a7a4a;font-weight:600;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="note">
+    これは動作確認用のUIモックです。実際のAI抽出は行わず、ボタンを押すとサンプルデータが表示されます。フローと操作性の確認用です。
+  </div>
+
+  <!-- STEP 1: アップロード -->
+  <div class="card">
+    <div class="card-title"><span class="bar"></span><span class="step-badge">STEP 1</span>下請け見積PDFを取り込む</div>
+    <div class="drop" onclick="fakeUpload()">
+      <div class="drop-icon">📄</div>
+      <div class="drop-main">PDFをドラッグ＆ドロップ / タップで選択</div>
+      <div class="drop-sub">他社フォーマットの見積書でOK・AIが自動で読み取ります</div>
+    </div>
+    <div id="filename" class="filename hidden">✓ 選択中：〇〇工業_見積書.pdf</div>
+  </div>
+
+  <!-- STEP 2: 抽出中 -->
+  <div id="loading" class="card hidden">
+    <div class="loading">
+      <div class="spinner"></div>
+      <div>AIが見積内容を読み取っています…</div>
+    </div>
+  </div>
+
+  <!-- STEP 3: 確認・修正 -->
+  <div id="result" class="card hidden">
+    <div class="card-title"><span class="bar"></span><span class="step-badge">STEP 2</span>抽出結果を確認・修正</div>
+
+    <div class="rate-bar">
+      <div class="rate-mode">
+        <button id="mode-uniform" class="active" onclick="setMode('uniform')">一律掛け率</button>
+        <button id="mode-each" onclick="setMode('each')">品目ごと</button>
+      </div>
+      <div id="uniform-input" class="rate-input">
+        全品 × <input type="number" id="uniformRate" value="1.3" step="0.05" oninput="recalc()"> 倍
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:28%">品名・型番</th>
+          <th style="width:14%">仕様</th>
+          <th style="width:8%">数量</th>
+          <th style="width:8%">単位</th>
+          <th style="width:14%">仕入単価</th>
+          <th style="width:10%">掛率</th>
+          <th style="width:14%">提出単価</th>
+          <th style="width:4%"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <button class="btn btn-add" style="margin-top:12px" onclick="addRow()">＋ 行を追加</button>
+
+    <div class="summary">
+      <div><span class="lbl">仕入合計</span> <span class="val" id="sumCost">¥0</span></div>
+      <div><span class="lbl">提出合計</span> <span class="val total" id="sumOut">¥0</span></div>
+    </div>
+
+    <div class="btns">
+      <button class="btn btn-ghost" onclick="reset()">やり直す</button>
+      <button class="btn btn-green" onclick="applyToInvoice()">✅ TKS見積書の明細に反映</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let mode = 'uniform';
+
+// サンプル抽出データ（実際はGeminiが返す）
+const SAMPLE = [
+  {name:'ステンレス作業台 W1200', spec:'SUS304', qty:2, unit:'台', cost:38000, rate:1.3},
+  {name:'ガスコンロ 2口', spec:'RGC-2', qty:1, unit:'台', cost:52000, rate:1.3},
+  {name:'配管接続工事', spec:'', qty:1, unit:'式', cost:15000, rate:1.3},
+  {name:'運搬・設置費', spec:'', qty:1, unit:'式', cost:8000, rate:1.3},
+];
+
+function fakeUpload(){
+  document.getElementById('filename').classList.remove('hidden');
+  document.getElementById('loading').classList.remove('hidden');
+  document.getElementById('result').classList.add('hidden');
+  setTimeout(()=>{
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('result').classList.remove('hidden');
+    renderRows(SAMPLE.map(r=>({...r})));
+  }, 1400);
+}
+
+function renderRows(rows){
+  const tb = document.getElementById('tbody');
+  tb.innerHTML = '';
+  rows.forEach((r,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input value="${r.name}" data-f="name" data-i="${i}"></td>
+      <td><input value="${r.spec}" data-f="spec" data-i="${i}"></td>
+      <td class="num"><input type="number" value="${r.qty}" data-f="qty" data-i="${i}" oninput="recalc()"></td>
+      <td><input value="${r.unit}" data-f="unit" data-i="${i}"></td>
+      <td class="num"><input type="number" value="${r.cost}" data-f="cost" data-i="${i}" oninput="recalc()"></td>
+      <td class="rate"><input type="number" value="${r.rate}" step="0.05" data-f="rate" data-i="${i}" oninput="recalc()" ${mode==='uniform'?'disabled style=background:#f5f5f5':''}></td>
+      <td class="out-price" data-out="${i}">¥0</td>
+      <td class="row-del" onclick="delRow(this)">✕</td>
+    `;
+    tb.appendChild(tr);
+  });
+  recalc();
+}
+
+function getRows(){
+  const rows = [];
+  document.querySelectorAll('#tbody tr').forEach((tr,i)=>{
+    const g = f => { const el = tr.querySelector(`[data-f="${f}"]`); return el?el.value:''; };
+    rows.push({name:g('name'),spec:g('spec'),qty:+g('qty')||0,unit:g('unit'),cost:+g('cost')||0,rate:+g('rate')||1});
+  });
+  return rows;
+}
+
+function recalc(){
+  const uniform = +document.getElementById('uniformRate').value || 1;
+  let sumCost=0, sumOut=0;
+  document.querySelectorAll('#tbody tr').forEach((tr,i)=>{
+    const qty = +tr.querySelector('[data-f="qty"]').value || 0;
+    const cost = +tr.querySelector('[data-f="cost"]').value || 0;
+    let rate;
+    if(mode==='uniform'){
+      rate = uniform;
+      tr.querySelector('[data-f="rate"]').value = uniform;
+    } else {
+      rate = +tr.querySelector('[data-f="rate"]').value || 1;
+    }
+    const outUnit = Math.round(cost*rate);
+    tr.querySelector(`[data-out="${i}"]`).textContent = '¥'+outUnit.toLocaleString();
+    sumCost += cost*qty;
+    sumOut  += outUnit*qty;
+  });
+  document.getElementById('sumCost').textContent = '¥'+sumCost.toLocaleString();
+  document.getElementById('sumOut').textContent  = '¥'+sumOut.toLocaleString();
+}
+
+function setMode(m){
+  mode = m;
+  document.getElementById('mode-uniform').classList.toggle('active', m==='uniform');
+  document.getElementById('mode-each').classList.toggle('active', m==='each');
+  document.getElementById('uniform-input').style.display = m==='uniform'?'flex':'none';
+  // 掛率欄の編集可否を更新
+  const rows = getRows();
+  renderRows(rows);
+}
+
+function addRow(){
+  const rows = getRows();
+  rows.push({name:'',spec:'',qty:1,unit:'式',cost:0,rate:mode==='uniform'?(+document.getElementById('uniformRate').value||1.3):1.3});
+  renderRows(rows);
+}
+
+function delRow(el){
+  el.closest('tr').remove();
+  recalc();
+}
+
+function reset(){
+  document.getElementById('result').classList.add('hidden');
+  document.getElementById('filename').classList.add('hidden');
+}
+
+function applyToInvoice(){
+  const rows = getRows();
+  const uniform = +document.getElementById('uniformRate').value || 1;
+  const out = rows.map(r=>{
+    const rate = mode==='uniform'?uniform:r.rate;
+    return {name:r.name, spec:r.spec, qty:r.qty, unit:r.unit, price:Math.round(r.cost*rate)};
+  });
+  alert('▼ TKS見積書の明細に反映される内容（実機ではフォームに流し込み）\n\n'
+    + out.map(r=>`${r.name} / ${r.qty}${r.unit} / ¥${r.price.toLocaleString()}`).join('\n'));
+}
+</script>
+</body>
+</html>
