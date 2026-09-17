@@ -667,8 +667,8 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
 
   /* ───── 点検システム連携（写真PDFの送信先。URL・合言葉は組み込み済み） ───── */
   var TK = {
-    url:    '',    // 受信口（Apps Script の /exec URL）。空なら「点検システムへ送信」ボタンは出ない
-    secret: ''     // 受信口の合言葉
+    url:    'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec',   // 写真PDF受信専用（点検システム）
+    secret: 'tk-a2d471692ec5'
   };
   var lastPdf = null;                   // 直近に保存したPDF { blob, name }
   var LINKINFO = { site:'', date:'' };  // 点検アプリから渡された現場名・点検日
