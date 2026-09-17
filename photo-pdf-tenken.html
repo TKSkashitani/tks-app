@@ -629,6 +629,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   <div class="inner">
     <button id="export" disabled>PDFを保存</button>
     <div id="status">まだ写真がありません</div>
+    <button id="sendTk" class="ghost" style="display:none;width:100%;margin-top:8px">☁ 点検システムへ送信（写真PDFを登録）</button>
   </div>
 </div>
 
@@ -664,7 +665,16 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
   };
   /* ─────────────────────────────────────────────────────────── */
 
-  var VERSION = 'v1.8-tenken';
+  /* ───── 点検システム連携（写真PDFの送信先。URL・合言葉は組み込み済み） ───── */
+  var TK = {
+    url:    '',    // 受信口（Apps Script の /exec URL）。空なら「点検システムへ送信」ボタンは出ない
+    secret: ''     // 受信口の合言葉
+  };
+  var lastPdf = null;                   // 直近に保存したPDF { blob, name }
+  var LINKINFO = { site:'', date:'' };  // 点検アプリから渡された現場名・点検日
+  /* ─────────────────────────────────────────────────────────── */
+
+  var VERSION = 'v1.9-tenken';
 
   var MM = { W:210, H:297, M:10, GAP:3.5 };
   var FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif';
@@ -674,7 +684,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
   var el = {};
   ['drop','pick','file','groups','addGroup','undo','docTitle','size','showCaption','showDate','hq',
    'clear','preview','export','status','saveBar','actionBar','selInfo','mvPrev','mvNext','moveTo',
-   'del','deselect','tip','ocr','banner','ver','ocrCfg','snap','snapBtn','expBtn','impBtn','impFile'].forEach(function(id){ el[id] = document.getElementById(id); });
+   'del','deselect','tip','ocr','banner','ver','ocrCfg','snap','snapBtn','expBtn','impBtn','impFile','sendTk'].forEach(function(id){ el[id] = document.getElementById(id); });
 
   function uid(p){ state.seq += 1; return p + state.seq; }
 
@@ -998,8 +1008,9 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
       var items = (sp.get('items') || '').split('|')
                     .map(function(t){ return t.trim(); })
                     .filter(function(t){ return t; });
+      var date = (sp.get('date') || '').trim();
       if (!site && !items.length) return null;
-      return { site: site, items: items };
+      return { site: site, items: items, date: date };
     } catch (e) { return null; }
   }
   function applyLinkParams(link){
@@ -1008,6 +1019,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
     state.photos = {}; state.groups = []; state.sel = []; state.history = [];
     el.undo.disabled = true;
     if (link.site) el.docTitle.value = link.site;
+    LINKINFO.site = link.site || ''; LINKINFO.date = link.date || '';
     link.items.forEach(function(name){
       state.groups.push({ id: uid('g'), title: name, comment: '', ids: [] });
     });
@@ -1804,6 +1816,8 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
                    d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '.pdf';
         pdf.save(name);
         el.status.textContent = '保存しました：' + name;
+        try { lastPdf = { blob: pdf.output('blob'), name: name }; if (el.sendTk && TK.url && TK.secret) el.sendTk.style.display = ''; } catch (e2) { lastPdf = null; }
+        if (!(TK.url && TK.secret)) el.status.textContent = '保存しました：' + name + '　→ 共有メニューから Google ドライブ「点検報告書PDF／写真まとめ」に入れると点検アプリに表示されます';
       } catch (err) {
         el.status.textContent = 'PDFを作れませんでした。ページを開き直して、もう一度お試しください。';
       }
@@ -1995,6 +2009,44 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
     if(url)OCR.url=url; if(secret)OCR.secret=secret;
     return tx('meta','readwrite',function(st){ return st.put({url:OCR.url,secret:OCR.secret},'ocrcfg'); }).catch(function(){});
   }
+  function loadTkCfg(){
+    tx('meta','readonly',function(st){ return st.get('tkcfg'); }).then(function(c){
+      if(c){ if(c.url)TK.url=c.url; if(c.secret)TK.secret=c.secret; }
+    }).catch(function(){});
+  }
+  function saveTkCfg(url,secret){
+    if(url)TK.url=url; if(secret)TK.secret=secret;
+    return tx('meta','readwrite',function(st){ return st.put({url:TK.url,secret:TK.secret},'tkcfg'); }).catch(function(){});
+  }
+  /* 点検システムへ送信：直近に保存したPDFをそのまま登録（ドライブ保存＋点検記録に紐づけ） */
+  function sendToTk(){
+    if (!lastPdf) { el.status.textContent = '先に「PDFを保存」を押してください'; return; }
+    if (!TK.url || !TK.secret) { el.status.textContent = '送信先が未設定です（⚙ 設定に点検システムURLと合言葉を入れると使えます）'; return; }
+    el.sendTk.disabled = true;
+    el.status.textContent = '点検システムへ送信中…（' + Math.round(lastPdf.blob.size / 1048576 * 10) / 10 + 'MB）';
+    var rd = new FileReader();
+    rd.onload = function(){
+      var b64 = String(rd.result).split(',')[1] || '';
+      var site = el.docTitle.value.trim() || LINKINFO.site || '';
+      var d = new Date();
+      var today = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+      var body = { action:'photoPdf', secret:TK.secret, site:site, date:(LINKINFO.date || today), filename:lastPdf.name,
+                   groups:state.groups.length, photos:totalPhotos(), from:'点検まとめくん ' + VERSION, pdf:b64 };
+      fetch(TK.url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          el.sendTk.disabled = false;
+          if (j && j.ok) {
+            el.status.innerHTML = '点検システムに登録しました：' + escapeHtml(j.name) + '　<a href="' + escapeHtml(j.url) + '" target="_blank" rel="noopener">開く</a>';
+          } else {
+            el.status.textContent = '送信できませんでした：' + ((j && j.error) || '不明なエラー');
+          }
+        })
+        .catch(function(){ el.sendTk.disabled = false; el.status.textContent = '送信できませんでした（電波が届いていないか、サーバーが応答しません）'; });
+    };
+    rd.onerror = function(){ el.sendTk.disabled = false; el.status.textContent = 'PDFを読み込めませんでした'; };
+    rd.readAsDataURL(lastPdf.blob);
+  }
   function showOcrSettings(){
     var ov=document.createElement('div'); ov.className='kpick-ov';
     var box=document.createElement('div'); box.className='kpick';
@@ -2008,9 +2060,16 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
     var k=document.createElement('input'); k.type='text'; k.className='kpick-input'; k.placeholder='合言葉'; k.value=OCR.secret||'';
     k.setAttribute('autocapitalize','off'); k.setAttribute('autocorrect','off'); k.spellcheck=false;
     box.appendChild(u); box.appendChild(k);
+    var note2=document.createElement('div'); note2.className='kpick-read'; note2.innerHTML='<b>点検システム連携</b>（写真PDFの送信先）。ふだんは変更不要です。';
+    box.appendChild(note2);
+    var u2=document.createElement('input'); u2.type='text'; u2.className='kpick-input'; u2.placeholder='点検システムURL（…/exec）'; u2.value=TK.url||'';
+    u2.setAttribute('autocapitalize','off'); u2.setAttribute('autocorrect','off'); u2.spellcheck=false;
+    var k2=document.createElement('input'); k2.type='text'; k2.className='kpick-input'; k2.placeholder='点検システムの合言葉'; k2.value=TK.secret||'';
+    k2.setAttribute('autocapitalize','off'); k2.setAttribute('autocorrect','off'); k2.spellcheck=false;
+    box.appendChild(u2); box.appendChild(k2);
     var acts=document.createElement('div'); acts.className='kpick-acts';
     var save=document.createElement('button'); save.className='ghost'; save.textContent='保存';
-    save.addEventListener('click', function(){ saveOcrCfg(u.value.trim(), k.value.trim()); if(ov.parentNode)ov.parentNode.removeChild(ov); if(el.selInfo)el.selInfo.textContent='設定を保存しました'; });
+    save.addEventListener('click', function(){ saveOcrCfg(u.value.trim(), k.value.trim()); saveTkCfg(u2.value.trim(), k2.value.trim()); if(ov.parentNode)ov.parentNode.removeChild(ov); if(el.selInfo)el.selInfo.textContent='設定を保存しました'; });
     var cancel=document.createElement('button'); cancel.className='ghost'; cancel.textContent='閉じる';
     cancel.addEventListener('click', function(){ if(ov.parentNode)ov.parentNode.removeChild(ov); });
     acts.appendChild(save); acts.appendChild(cancel); box.appendChild(acts);
@@ -2100,6 +2159,8 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
     });
   }
   loadOcrCfg();
+  loadTkCfg();
+  if (el.sendTk) el.sendTk.addEventListener('click', sendToTk);
 
 
   /* ---------- 入力 ---------- */
