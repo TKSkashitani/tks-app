@@ -375,7 +375,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v43";
+var APP_VERSION="v44";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -385,7 +385,10 @@ function apiPost(body, timeoutMs){
   var timer=setTimeout(function(){ if(ctl) ctl.abort(); }, timeoutMs||90000);
   return fetch(API.url,{ method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body), redirect:'follow', signal:ctl?ctl.signal:undefined })
     .then(function(r){ return r.text(); })
-    .then(function(txt){ clearTimeout(timer); var j=null; try{ j=JSON.parse(txt); }catch(e){} if(!j) throw new Error("受信口の応答が読めません（デプロイが未更新の可能性）"); if(!j.ok){ var err=new Error(j.error||"error"); err.code=j.code; throw err; } return j; })
+    .then(function(txt){ clearTimeout(timer); var j=null; try{ j=JSON.parse(txt); }catch(e){}
+      if(!j){ var m=/\{[\s\S]*\}/.exec(txt||""); if(m){ try{ j=JSON.parse(m[0]); }catch(e2){} } }   // JSON が HTML などに包まれて返った場合の救済
+      if(!j) throw new Error("受信口の応答が読めません："+String(txt||"(空)").replace(/\s+/g," ").slice(0,160));
+      if(!j.ok){ var err=new Error(j.error||"error"); err.code=j.code; throw err; } return j; })
     .catch(function(e){ clearTimeout(timer); if(e&&e.name==='AbortError') throw new Error("通信がタイムアウトしました"); throw e; });
 }
 function waitJob(id){
