@@ -375,7 +375,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v41";
+var APP_VERSION="v42";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -387,6 +387,19 @@ function apiPost(body, timeoutMs){
     .then(function(r){ return r.text(); })
     .then(function(txt){ clearTimeout(timer); var j=null; try{ j=JSON.parse(txt); }catch(e){} if(!j) throw new Error("受信口の応答が読めません（デプロイが未更新の可能性）"); if(!j.ok){ var err=new Error(j.error||"error"); err.code=j.code; throw err; } return j; })
     .catch(function(e){ clearTimeout(timer); if(e&&e.name==='AbortError') throw new Error("通信がタイムアウトしました"); throw e; });
+}
+function waitJob(id){
+  return new Promise(function(res,rej){ var n=0;
+    (function tick(){
+      apiPost({ action:'rpc', fn:'getPwaJob', args:[id], token:API.token }, 30000).then(function(j){
+        var st=j.result||{};
+        if(st.state==='done') res(st.result);
+        else if(st.state==='error') rej(new Error(st.error||'処理に失敗しました'));
+        else if(++n>150) rej(new Error('処理が終わりません（時間切れ）'));
+        else setTimeout(tick,4000);
+      }).catch(function(e){ if(++n>150) rej(e); else setTimeout(tick,6000); });
+    })();
+  });
 }
 function onAuthLost(){ try{ localStorage.removeItem("tks_pwa_token"); }catch(e){} API.token=""; toast("端末の登録が無効です。登録し直してください"); show("scr-enroll"); }
 function apiProxy(quiet){
@@ -400,7 +413,8 @@ function apiProxy(quiet){
       var slow=(name==="submitSiteInspection"||name==="updateInspection"||name==="makeInspectionPdf"||name==="getReportHtml");
       if(!quiet) busy(1);
       apiPost({ action:'rpc', fn:name, args:args, token:API.token }, slow?300000:90000)
-        .then(function(j){ if(!quiet) busy(-1); if(ok) ok(j.result, uo); })
+        .then(function(j){ var r=j.result; return (r&&r.__job) ? waitJob(r.__job) : r; })   // PDF作成などは裏で実行 → 結果を取りに行く
+        .then(function(result){ if(!quiet) busy(-1); if(ok) ok(result, uo); })
         .catch(function(e){ if(!quiet) busy(-1); if(e&&e.code===401) onAuthLost(); if(fail) fail(e, uo); else if(!quiet) toast("通信エラー："+((e&&e.message)||e)); });
     };
   }});
