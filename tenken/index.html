@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>機器点検 入力</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="機器点検">
+<meta name="theme-color" content="#1F3864">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{ --navy:#1F3864; --sub:#2E5496; --green:#C6E0B4; --gt:#375623;
+    --blue:#BDD7EE; --bt:#1F4E79; --amber:#FFE699; --at:#7F6000;
+    --red:#F4B0B0; --rt:#843C39; --line:#D9D9D9; --goal:#FCE4D6; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{ margin:0; font-family:-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:#F1EFE8; color:#1a1a1a; font-size:15px; }
+  .wrap{ max-width:520px; margin:0 auto; padding-bottom:92px; }
+  header{ background:var(--navy); color:#fff; padding:12px 14px; position:sticky; top:0; z-index:5; }
+  header h1{ margin:0; font-size:16px; font-weight:600; }
+  header p{ margin:3px 0 0; font-size:11px; color:#BDD7EE; }
+  .back{ background:none; border:none; color:#BDD7EE; font-size:13px; padding:0; margin-bottom:4px; font-family:inherit; }
+  .sec{ background:#fff; margin:10px; border-radius:14px; padding:12px 14px; border:1px solid #eee; }
+  label.f{ display:block; font-size:12px; color:#555; margin:8px 0 4px; }
+  input,textarea,select{ width:100%; border:1px solid var(--line); border-radius:9px;
+    padding:10px 12px; font-size:15px; font-family:inherit; background:#fff; }
+  textarea{ min-height:52px; resize:vertical; }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .row{ border:1px solid #eee; border-radius:12px; padding:11px 12px; margin-bottom:8px;
+    display:flex; align-items:center; gap:10px; background:#fff; }
+  .row .t{ flex:1; min-width:0; }
+  .row .t p{ margin:0; }
+  .nm{ font-size:14px; font-weight:600; }
+  .sb2{ font-size:11px; color:#666; margin-top:2px !important; }
+  .badge{ font-size:11px; padding:3px 9px; border-radius:10px; font-weight:600; white-space:nowrap; }
+  .b-done{ background:var(--green); color:var(--gt); }
+  .b-warn{ background:var(--amber); color:var(--at); }
+  .b-bad{ background:var(--red); color:var(--rt); }
+  .b-none{ background:#eee; color:#777; }
+  .btn{ height:44px; border:1px solid var(--line); border-radius:10px; background:#fff;
+    font-size:14px; font-family:inherit; color:#222; width:100%; }
+  .btn.dash{ border:1px dashed #999; background:#fafafa; color:#555; }
+  .btn.pri{ background:var(--navy); color:#fff; border:none; font-weight:600; }
+  .btn.del{ color:#A32D2D; border-color:#E0B4B4; }
+  button,.q,.cat,.legend,.badge{ -webkit-user-select:none; user-select:none; }
+  .item{ border:1px solid #eee; border-radius:10px; padding:7px 8px 7px 11px; margin-top:7px; background:#fff;
+    display:flex; align-items:center; gap:8px; }
+  .item .q{ flex:1; min-width:0; font-size:13px; font-weight:600; margin:0; line-height:1.35; }
+  .item.warn{ border:1px solid var(--amber); background:#FFFDF5; }
+  .item.bad{ border:1px solid var(--red); background:#FFF7F7; }
+  .btns{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .jrow{ display:flex; gap:5px; flex:none; }
+  .jb{ width:42px; height:42px; border:1px solid var(--line); border-radius:9px; background:#fff;
+    font-size:20px; line-height:1; font-family:inherit; color:#666; padding:0; }
+  .jb.on-g{ background:var(--green); color:var(--gt); border-color:var(--green); font-weight:700; }
+  .jb.on-b{ background:var(--blue); color:var(--bt); border-color:var(--blue); font-weight:700; }
+  .jb.on-a{ background:var(--amber); color:var(--at); border-color:var(--amber); font-weight:700; }
+  .jb.on-r{ background:var(--red); color:var(--rt); border-color:var(--red); font-weight:700; }
+  .jb.on-n{ background:#777; color:#fff; border-color:#777; font-weight:700; }
+  .editbar{ background:#FFF4D6; border:1px solid #E6C56B; color:#6B4E00; border-radius:10px; padding:8px 10px; font-size:13px; margin-bottom:10px; }
+  .edtb{ margin-left:6px; font-size:11px; padding:3px 8px; border-radius:10px; border:1px solid #1F3864; background:#fff; color:#1F3864; font-weight:600; }
+  .qbar{ display:flex; gap:6px; margin-top:9px; }
+  .qb{ flex:1; height:38px; border:1px solid rgba(255,255,255,.45); border-radius:9px;
+    background:rgba(255,255,255,.14); color:#fff; font-family:inherit; font-size:12px; font-weight:600; }
+  .qb.qb-ok{ background:var(--green); color:var(--gt); border-color:var(--green); }
+  .qb.on{ background:#fff; color:var(--navy); border-color:#fff; }
+  .legend{ font-size:11px; color:#666; margin:12px 8px 0; }
+  .cat{ font-size:12px; color:#2E5496; font-weight:600; margin:16px 4px 0; }
+  .prev{ display:inline-block; font-size:11px; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600; }
+  .p-g{background:var(--green);color:var(--gt)} .p-b{background:var(--blue);color:var(--bt)}
+  .p-a{background:var(--amber);color:var(--at)} .p-r{background:var(--red);color:var(--rt)}
+  .p-x{background:#eee;color:#666}
+  .info{ background:#EAF0F9; border:1px solid #BDD7EE; border-radius:12px; padding:10px 12px;
+    margin:10px; font-size:13px; color:#1F3864; }
+  .goal{ background:var(--goal); border-radius:12px; padding:12px; }
+  .goal h3{ margin:0 0 8px; font-size:13px; color:#843C39; }
+  .sb{ height:42px; border:1px solid var(--line); border-radius:10px; background:#fff;
+    font-size:13px; font-family:inherit; color:#222; }
+  .photo{ width:100%; min-height:50px; border:1.5px dashed #999; border-radius:12px; background:#fafafa;
+    color:#555; font-size:14px; display:flex; align-items:center; justify-content:center; margin-top:6px; }
+  .thumbs{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; }
+  .tile{ position:relative; border:1px solid #ddd; border-radius:10px; padding:6px; background:#fff; }
+  .tile img{ width:100%; height:96px; object-fit:cover; border-radius:6px; display:block; }
+  .tile .cap{ margin-top:5px; font-size:12px; padding:6px 8px; border-radius:7px; }
+  .tile .x{ position:absolute; top:-7px; right:-7px; width:26px; height:26px; border-radius:50%;
+    border:none; background:#A32D2D; color:#fff; font-size:15px; line-height:1; font-family:inherit; }
+  .tile .mv{ position:absolute; top:-7px; left:-7px; height:26px; padding:0 9px; border-radius:13px;
+    border:none; background:#1F3864; color:#fff; font-size:12px; line-height:26px; font-family:inherit; font-weight:600; }
+  #pick{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:60; display:flex; align-items:center; justify-content:center; padding:16px; }
+  #pick .pbox{ background:#fff; border-radius:12px; width:100%; max-width:520px; max-height:80vh; overflow:auto; padding:14px; }
+  #pick h3{ margin:0 0 8px; font-size:15px; color:#1F3864; }
+  #pick .row{ cursor:pointer; }
+  .pcount{ font-size:11px; color:#777; margin-top:6px; }
+  .tsel{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .tb{ height:52px; border:1px solid var(--line); border-radius:12px; background:#fff;
+    font-size:15px; font-family:inherit; color:#222; }
+  .tb.on{ background:var(--navy); color:#fff; border-color:var(--navy); font-weight:600; }
+  .warnbar{ background:#FDECEA; border-bottom:1px solid #F0B4B4; color:#843C39;
+    padding:9px 14px; font-size:12px; line-height:1.5; }
+  #lightbox{ position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px; }
+  #lightbox img{ max-width:100%; max-height:80vh; object-fit:contain; }
+  #lightbox .lbcap{ color:#fff; font-size:13px; margin-top:10px; text-align:center; }
+  #lightbox .lbx{ position:absolute; top:8px; right:14px; color:#fff; font-size:30px; background:none; border:none; font-family:inherit; }
+  .gal{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+  .gal .gi{ border:1px solid #ddd; border-radius:8px; overflow:hidden; background:#fff; }
+  .gal .gi img{ width:100%; height:96px; object-fit:cover; display:block; }
+  .gal .gi p{ margin:0; font-size:10px; padding:3px 5px; color:#444; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hide{ display:none !important; }
+  .bar{ position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid #ddd; padding:10px 14px; }
+  .bar .inner{ max-width:520px; margin:0 auto; }
+  #ver{ position:fixed; left:6px; bottom:6px; font-size:10px; color:#999; z-index:5; pointer-events:none; }
+  #saBar{ background:#FFF4D6; border-bottom:1px solid #E6C56B; color:#6B4E00; font-size:12px; padding:8px 12px; }
+  #unsentBar{ background:#FDECEA; border:1px solid #E5A3A3; color:#843C39; border-radius:10px; padding:8px 10px; font-size:13px; margin:0 0 10px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  #unsentBar button{ font-size:12px; padding:6px 10px; border-radius:8px; border:1px solid #843C39; background:#fff; color:#843C39; font-weight:600; white-space:nowrap; }
+  .b-pend{ background:#FFE699; color:#7F6000; }
+  #busy{ position:fixed; top:0; left:0; right:0; height:3px; z-index:80; background:linear-gradient(90deg,#1F3864,#9DBBFF,#1F3864); background-size:200% 100%; animation:busyslide .9s linear infinite; }
+  #busyTxt{ position:fixed; top:6px; right:8px; z-index:80; background:#1F3864; color:#fff; font-size:11px; padding:3px 9px; border-radius:10px; opacity:.9; }
+  @keyframes busyslide{ from{ background-position:200% 0; } to{ background-position:0 0; } }
+  .toast{ position:fixed; left:50%; bottom:84px; transform:translateX(-50%); background:#333; color:#fff;
+    padding:10px 16px; border-radius:20px; font-size:13px; opacity:0; transition:.3s; z-index:9; }
+  .toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+
+<div id="offlineBar" class="warnbar hide">
+  <b>プレビューモード</b>：スプレッドシートに接続されていません。画面の確認のみ可能で、登録・保存はできません。<br>
+  実際に使うには Apps Script でデプロイし、発行されたURL（script.google.com…）から開いてください。
+</div>
+
+<!-- ================= ① 現場選択 ================= -->
+<div id="saBar" class="hide">この画面はブラウザで開いています。共有ボタン →「ホーム画面に追加」で追加し、<b>ホーム画面のアイコンから開いて</b>ください。ブラウザのままだと7日間使わないと端末内のデータが消えます。</div>
+<div id="scr-enroll" class="hide">
+  <header><h1>端末を登録</h1><p>管理者から受け取った登録コードを入力してください</p></header>
+  <div class="wrap">
+    <div class="sec">
+      <label class="f">登録コード（6文字）</label>
+      <input type="text" id="enrollCode" placeholder="例：AB3K7Q" autocapitalize="characters" autocomplete="off" style="font-size:22px;letter-spacing:4px;text-align:center">
+      <button class="btn pri" style="margin-top:10px" onclick="doEnroll()">登録する</button>
+      <p id="enrollMsg" style="font-size:12px;color:#666;margin-top:8px">登録コードはスプレッドシートのメニュー「点検管理 → PWA：端末登録コードを発行」で発行できます（48時間有効・1回限り）。</p>
+    </div>
+  </div>
+</div>
+<div id="scr-site">
+  <header><h1>現場を選択</h1><p id="siteHeadSub">点検する現場を選んでください</p></header>
+  <div class="wrap">
+    <div class="sec">
+      <input type="text" id="siteSearch" placeholder="現場名で検索">
+    </div>
+    <div id="siteList"></div>
+    <div class="sec">
+      <button class="btn dash" onclick="newSite()">＋ 新しい現場を登録</button>
+      <button class="btn" style="margin-top:8px" onclick="prefetchAllSites()">⬇ 全現場を端末に取り込む（電波のない場所で使う前に）</button>
+      <p id="prefetchInfo" style="font-size:12px;color:#666;margin:6px 0 0"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ② 機器一覧 ================= -->
+<div id="scr-list" class="hide">
+  <header>
+    <button class="back" onclick="show('scr-site')">‹ 現場選択へ</button>
+    <h1 id="listTitle">現場名</h1>
+    <p id="listSub"></p>
+  </header>
+  <div class="wrap">
+    <div id="unsentBar" class="hide"><span id="unsentTxt"></span><button type="button" onclick="syncOutbox({manual:true})">今すぐ送信</button></div>
+    <div class="sec">
+      <div class="grid2">
+        <div><label class="f">点検日</label><input type="date" id="idate"></div>
+        <div><label class="f">点検者</label><input type="text" id="iinspector" placeholder="氏名"></div>
+      </div>
+      <label class="f">年間点検回数（この現場の契約）</label>
+      <select id="ifreq">
+        <option value="1">年1回</option><option value="2">年2回</option>
+        <option value="3">年3回</option><option value="4">年4回</option>
+      </select>
+    </div>
+    <div class="sec" style="padding-bottom:6px;">
+      <p style="margin:0 0 8px; font-size:12px; color:#555;" id="cntInfo"></p>
+      <div id="equipList"></div>
+      <div class="grid2" style="margin:10px 0 12px;">
+        <button class="btn dash" onclick="addUnit()">＋ 機器を追加</button>
+        <button class="btn" onclick="toggleEdit()" id="editBtn">機器を編集</button>
+      </div>
+      <button class="btn" style="width:100%; margin:0 0 8px;" onclick="openPhotoPdf()">📷 写真をまとめる（点検まとめくん）</button>
+      <button class="btn" style="width:100%; margin:0 0 12px;" onclick="openOutputs()">📄 点検表PDF・写真PDFの出力画面（保存済みの記録から）</button>
+    </div>
+  </div>
+  <div class="bar"><div class="inner">
+    <button class="btn pri" id="saveAllBtn" onclick="saveAll()">この現場の点検を保存</button>
+  </div></div>
+</div>
+
+<!-- ================= ③ 機器点検 ================= -->
+<div id="scr-unit" class="hide">
+  <header>
+    <button class="back" onclick="closeUnit()">‹ 機器一覧へ</button>
+    <h1 id="unitTitle">機器</h1>
+    <p id="unitSub"></p>
+    <div class="qbar">
+      <button type="button" class="qb qb-ok" onclick="bulkOK()">全て ○ 異常なし</button>
+      <button type="button" class="qb hide" id="qbPrev" onclick="copyPrev()">前回と同じ</button>
+      <button type="button" class="qb" id="qbFlt" onclick="toggleDefectOnly()">不具合のみ</button>
+    </div>
+  </header>
+  <div class="wrap">
+    <div id="prevInfo" class="info hide"></div>
+    <div class="legend">○ 異常なし　△ 清掃・調整　◎ 要交換　× 故障・不良　／ 対象外<br><span style="color:#777">選ばなかった項目は保存時に「／ 対象外」になります</span></div>
+    <div id="editBar" class="editbar hide"></div>
+    <div id="items"></div>
+
+    <div class="sec">
+      <label class="f">写真：全体（機器全景）</label>
+      <label class="photo" for="camA">＋ 全体写真を撮影（複数可）</label>
+      <input type="file" id="camA" accept="image/*" capture="environment" multiple class="hide">
+      <div id="thumbsA" class="thumbs"></div>
+      <label class="f" style="margin-top:12px;">写真：不良箇所</label>
+      <label class="photo" for="camB" style="border-color:#C08A8A;background:#FFF7F7;">＋ 不良箇所を撮影（何枚でも追加できます）</label>
+      <input type="file" id="camB" accept="image/*" capture="environment" multiple class="hide">
+      <div id="thumbsB" class="thumbs"></div>
+    </div>
+
+    <div class="sec">
+      <label class="f">交換部品・不良箇所（→ 修理見積・入替提案の根拠）</label>
+      <textarea id="udefects"></textarea>
+      <label class="f">備考・申し送り</label>
+      <textarea id="uremarks"></textarea>
+    </div>
+
+    <div class="sec goal">
+      <h3>総合判定・対応</h3>
+      <div class="btns" id="overall">
+        <button type="button" class="sb" data-v="良好">良好</button>
+        <button type="button" class="sb" data-v="要修理">要修理</button>
+        <button type="button" class="sb" data-v="要入替">要入替</button>
+        <button type="button" class="sb" data-v="経過観察">経過観察</button>
+      </div>
+      <label class="f">機器評価（A〜D）</label>
+      <div class="btns" id="grade">
+        <button type="button" class="sb" data-v="A">A　問題ない</button>
+        <button type="button" class="sb" data-v="B">B　修繕推奨</button>
+        <button type="button" class="sb" data-v="C">C　破損・修理必要</button>
+        <button type="button" class="sb" data-v="D">D　機器更新必要</button>
+      </div>
+      <label class="f">対応区分</label>
+      <div class="btns" id="action">
+        <button type="button" class="sb" data-v="A：修理見積">A：修理見積</button>
+        <button type="button" class="sb" data-v="B：入替提案">B：入替提案</button>
+        <button type="button" class="sb" data-v="経過観察">経過観察</button>
+        <button type="button" class="sb" data-v="対応不要">対応不要</button>
+      </div>
+    </div>
+  </div>
+  <div class="bar"><div class="inner">
+    <button class="btn pri" id="unitDoneBtn" onclick="closeUnit()">この機器を完了して戻る</button>
+    <button class="btn pri hide" id="unitSaveEditBtn" onclick="saveEdit()">修正を保存（上書き）</button>
+  </div></div>
+</div>
+
+<!-- ================= ④ 機器の追加・編集 ================= -->
+<div id="scr-edit" class="hide">
+  <header>
+    <button class="back" onclick="show('scr-list')">‹ 機器一覧へ</button>
+    <h1 id="editTitle">機器を追加</h1>
+    <p>機器種別を選び、名称を入力してください</p>
+  </header>
+  <div class="wrap">
+    <div class="sec">
+      <label class="f">機器種別（必須）</label>
+      <div class="tsel" id="etype">
+        <button type="button" class="tb" data-t="ガス機器">ガス機器</button>
+        <button type="button" class="tb" data-t="電気機器">電気機器</button>
+        <button type="button" class="tb" data-t="洗浄機">洗浄機</button>
+        <button type="button" class="tb" data-t="冷機器">冷機器</button>
+      </div>
+      <label class="f">機器名（必須）</label>
+      <input type="text" id="ename" placeholder="例）食器洗浄機">
+      <label class="f">型式</label>
+      <input type="text" id="emodel" placeholder="例）FMD-50WB">
+      <label class="f">シリアルNo.</label>
+      <input type="text" id="eserial" placeholder="例）SN-123456">
+    </div>
+    <div class="sec" id="edelWrap">
+      <button class="btn del" onclick="deleteEditor()">この機器を削除</button>
+    </div>
+  </div>
+  <div class="bar"><div class="inner">
+    <button class="btn pri" onclick="saveEditor()">保存する</button>
+  </div></div>
+</div>
+
+<!-- ================= ⑤ 出力（点検表PDF・写真PDF） ================= -->
+<div id="scr-done" class="hide">
+  <header>
+    <button class="back" id="doneBack" onclick="doneBack()">‹ 戻る</button>
+    <h1 id="doneTitle">保存しました</h1><p id="doneSub"></p>
+  </header>
+  <div class="wrap">
+    <div class="sec">
+      <h3 style="margin:0 0 4px;font-size:13px;color:#1F3864">点検表＋写真のPDF（1冊）</h3>
+      <div id="doneDateRow" class="hide" style="margin:0 0 8px">
+        <label for="doneDate" style="font-size:12px;color:#444;display:block;margin-bottom:3px">点検日を選ぶ（保存済みの記録がある日）</label>
+        <select id="doneDate" onchange="changeDoneDate()" style="font-size:15px;padding:8px 10px;border:1px solid #ccc;border-radius:8px;width:100%;background:#fff"></select>
+      </div>
+      <p style="margin:0 0 8px;font-size:12px;color:#666" id="doneCnt"></p>
+      <details id="doneUnitsWrap" style="margin:0 0 10px">
+        <summary style="font-size:13px;color:#1F3864;font-weight:600;cursor:pointer">この日の保存済み記録を見る・修正する <span id="doneUnitsCnt" style="font-weight:400;color:#666"></span></summary>
+        <div id="doneUnits" style="margin-top:6px"></div>
+      </details>
+      <div class="grid2" style="margin-bottom:8px">
+        <button class="btn pri pdfbtn" onclick="makePdf('fujimac')">📄 PDF作成：フジマック様式</button>
+        <button class="btn pri pdfbtn" onclick="makePdf('a4')">📄 PDF作成：A4縦</button>
+      </div>
+      <div class="grid2">
+        <button class="btn pdfbtn" onclick="previewReport('fujimac')">👁 プレビュー：フジマック様式</button>
+        <button class="btn pdfbtn" onclick="previewReport('a4')">👁 プレビュー：A4縦</button>
+      </div>
+      <div id="pdfLinks" style="margin-top:6px;font-size:13px"></div>
+      <div id="rptWrap" class="hide" style="margin-top:10px">
+        <div id="rptInfo" style="font-size:12px;color:#555;margin-bottom:6px"></div>
+        <div id="rptScale" style="overflow:hidden;border:1px solid #ddd;background:#e9e9e9;border-radius:8px;padding:8px"><div id="rptInner" style="transform-origin:top left"></div></div>
+      </div>
+    </div>
+    <div class="sec">
+      <h3 style="margin:0 0 6px;font-size:13px;color:#1F3864">写真（点検アプリで撮った分）</h3>
+      <p style="margin:0 0 8px;font-size:12px;color:#666">タップで拡大。PDFにはこの写真が機器ごとに入ります。</p>
+      <div id="insPhotos" style="font-size:13px"></div>
+    </div>
+    <div class="sec">
+      <h3 style="margin:0 0 6px;font-size:13px;color:#1F3864">写真まとめPDF</h3>
+      <p style="margin:0 0 8px;font-size:12px;color:#666">点検まとめくんで写真を機器ごとにまとめて「PDFを保存」→ 共有メニューから Google ドライブの「点検報告書PDF／写真まとめ」フォルダに入れてください。ファイル名に現場名が入っていれば、下に自動で表示されます。</p>
+      <button class="btn" onclick="openPhotoPdf(LAST&&LAST.names)">📷 写真をまとめる（点検まとめくん）</button>
+      <button class="btn" style="margin-top:8px" onclick="loadPhotoPdfs()">🔄 登録済みの写真PDFを表示</button>
+      <div id="photoLinks" style="margin-top:8px;font-size:13px"></div>
+    </div>
+    <div class="sec"><button class="btn" onclick="resetAll()">現場選択へ戻る</button></div>
+  </div>
+</div>
+
+<div id="busy" class="hide"></div><div id="busyTxt" class="hide">通信中…</div><div id="ver"></div>
+<div id="pick" class="hide" onclick="if(event.target===this)this.classList.add('hide')"><div class="pbox"><h3 id="pickTitle"></h3><p id="pickSub" style="margin:0 0 8px;font-size:12px;color:#666"></p><div id="pickList"></div><button type="button" class="btn" style="margin-top:8px" onclick="$('pick').classList.add('hide')">閉じる</button></div></div>
+<div id="lightbox" class="hide" onclick="this.classList.add('hide')"><button class="lbx" type="button">×</button><img id="lbImg" alt=""><div class="lbcap" id="lbCap"></div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var ITEMS_BY_TYPE = {
+ "ガス機器":[["ガス燃焼部","ガス漏れ点検"],["ガス燃焼部","バーナー燃焼状態"],["ガス燃焼部","パイロットバーナー燃焼状態"],["ガス燃焼部","ノズル目詰まり"],["ガス燃焼部","火移り状態"],["ガス燃焼部","圧電着火状態"],["ガス燃焼部","パイロットバーナー保持状態"],["安全装置・電装","サーモスタット動作・温度制限"],["安全装置・電装","過昇防止装置"],["安全装置・電装","サーミスタ動作"],["安全装置・電装","熱電対（サーモカップル等）"],["安全装置・電装","ガスコック"],["安全装置・電装","表示ランプ"],["安全装置・電装","電磁弁"],["安全装置・電装","モーター・ファンモーター"],["安全装置・電装","スイッチ動作"],["安全装置・電装","基板"],["機械・外装","ガス用グランドの緩み"],["機械・外装","扉・蓋の開閉具合"],["機械・外装","水槽・油槽の漏れ"],["機械・外装","本体各部の水・油漏れ"],["機械・外装","各部パッキンの状態"],["機械・外装","ガス・ホース等の状態"],["機械・外装","本体各部のクラック・破損"],["機械・外装","回転ギヤー等の破損"],["機械・外装","各回転部の異常"],["機械・外装","取手・ツマミ破損"],["機械・外装","ドア・ヒンジ／ラック状態"]],
+ "電気機器":[["絶縁測定(MΩ)","本体絶縁"],["絶縁測定(MΩ)","モーター絶縁"],["絶縁測定(MΩ)","ヒーター絶縁（熱時用）"],["電装・制御","スイッチの動作"],["電装・制御","ランプ類"],["電装・制御","表示板の動作"],["電装・制御","モーター・ファンモーター"],["電装・制御","回転部の異常音"],["電装・制御","照明ランプ"],["電装・制御","配線"],["電装・制御","タイマー"],["電装・制御","リレー・マグネットの動作"],["電装・制御","電磁弁"],["電装・制御","回転機構"],["電装・制御","サーモスタット・温度コントロール"],["電装・制御","基板"],["機械・外装","ドア開閉"],["機械・外装","水槽水漏れ"],["機械・外装","パッキン状態"],["機械・外装","ハンドル・ツマミ類の破損"],["機械・外装","電装ＢＯＸ"]],
+ "洗浄機":[["絶縁測定(MΩ)","本体絶縁"],["絶縁測定(MΩ)","コンベアモーター"],["絶縁測定(MΩ)","洗浄ポンプ"],["絶縁測定(MΩ)","循環ポンプ"],["絶縁測定(MΩ)","ラインポンプ"],["絶縁測定(MΩ)","電磁弁"],["絶縁測定(MΩ)","ヒーター（熱時用）"],["回転・動作","コンベアモーター回転"],["回転・動作","洗浄ポンプ回転"],["回転・動作","ラインポンプ回転"],["回転・動作","電磁弁動作"],["回転・動作","マグネットスイッチ"],["回転・動作","フロートスイッチ動作"],["回転・動作","減速機回転"],["回転・動作","タンクストレーナー目詰り"],["回転・動作","コンベア異常音"],["制御・電装","スイッチ動作"],["制御・電装","押ボタンスイッチ"],["制御・電装","サーモスタット"],["制御・電装","タイマー"],["制御・電装","基板"],["制御・電装","ランプ類"],["制御・電装","温度計"],["ガス燃焼部","口火安全器"],["ガス燃焼部","パイロットバーナー保持"],["ガス燃焼部","メインバーナー燃焼状態"],["機械・外装","各部水漏れ・蒸気漏れ"],["機械・外装","バルブ動作"],["機械・外装","ドア開閉状態"],["機械・外装","コントロールＢＯＸ"]],
+ "冷機器":[["運転計測","運転電流"],["運転計測","吐出管温度"],["運転計測","吸入管温度"],["運転計測","圧縮機外殻温度"],["運転計測","圧縮機・ファンモーター・電磁弁 異音・振動"],["運転計測","冷媒漏れ点検"],["絶縁測定(MΩ)","絶縁測定（冷凍機）"],["絶縁測定(MΩ)","絶縁測定（ファンヒーター）"],["絶縁測定(MΩ)","絶縁測定（ヒーター）"],["冷却系","コンデンサーフィルター・目詰り"],["冷却系","除霜運転時間"],["冷却系","除霜運転電流"],["冷却系","冷却水ストレーナー目詰り"],["冷却系","その他"],["制御・電装","サーモスタット動作"],["制御・電装","庫内温度・除霜復帰サーミスター抵抗"],["制御・電装","基板"],["制御・電装","タイマー"],["制御・電装","保護装置"],["制御・電装","温度計"],["制御・電装","スイッチ"],["制御・電装","表示ランプ"],["制御・電装","リレー・マグネット"],["制御・電装","その他"],["扉・庫内","ドアパッキン"],["扉・庫内","ドアヒンジ（カラーブッシュ摩耗）"],["扉・庫内","ドアスイッチ"],["扉・庫内","庫内灯"],["扉・庫内","通風口ヒーター・Ｒヒーター（冷凍冷蔵庫のみ）"],["扉・庫内","ドロワーヒーター"],["扉・庫内","その他"]]
+};
+var TYPES=["ガス機器","電気機器","洗浄機","冷機器"];
+var JUDGES=[["異常なし","on-g","○"],["清掃・調整","on-b","△"],["要交換","on-a","◎"],["故障・不良","on-r","×"],["対象外","on-n","／"]];
+var defectOnly=false;
+var PCLS={"異常なし":"p-g","清掃・調整":"p-b","要交換":"p-a","故障・不良":"p-r","対象外":"p-x"};
+
+var S={site:"",date:"",inspector:"",freq:"",units:[]};
+var sites=[], cur=-1, editMode=false;
+/* ---------- 同時利用の見える化（本日保存済み・他の人が点検中） ---------- */
+var STATUS={done:{},claims:{},me:"",now:""}; var statusTimer=null, hbTimer=null;
+function unitKey(u){ return String(u.no||"").trim() || (String(u.name||"")+"|"+String(u.model||"")+"|"+String(u.serial||"")); }
+function claimIsMine(cl){ if(!cl) return false; if(STATUS.me) return cl.id===STATUS.me; return cl.id!=="unknown" && cl.name===(S.inspector||""); }
+function loadStatus(cb){ var r=srv(true); if(!r||!S.site) return;
+  r.withSuccessHandler(function(res){ if(res&&res.ok){ STATUS=res; if(!$("scr-list").classList.contains("hide")) renderList(); } if(cb) cb(res); })
+   .withFailureHandler(function(){}).getSiteStatus(S.site, S.date||$("idate").value); }
+function startStatusPolling(skipNow){ clearInterval(statusTimer); if(!skipNow) loadStatus(); statusTimer=setInterval(function(){ if(!$("scr-list").classList.contains("hide")) loadStatus(); },45000); }
+function claimCurrent(release){ var r=srv(true); if(!r||cur<0||!S.site) return; var u=S.units[cur];
+  r.withSuccessHandler(function(){}).withFailureHandler(function(){}).claimUnit(S.site, unitKey(u), S.inspector||"", !!release); }
+
+function $(id){return document.getElementById(id);}
+function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
+function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
+/* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
+var APP_VERSION="v41";
+var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
+try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
+function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
+function uuid(){ try{ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID(); }catch(e){} return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){ var r=Math.random()*16|0; return (c==='x'?r:(r&3|8)).toString(16); }); }
+function apiPost(body, timeoutMs){
+  var ctl=('AbortController' in window)?new AbortController():null;
+  var timer=setTimeout(function(){ if(ctl) ctl.abort(); }, timeoutMs||90000);
+  return fetch(API.url,{ method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body), redirect:'follow', signal:ctl?ctl.signal:undefined })
+    .then(function(r){ return r.text(); })
+    .then(function(txt){ clearTimeout(timer); var j=null; try{ j=JSON.parse(txt); }catch(e){} if(!j) throw new Error("受信口の応答が読めません（デプロイが未更新の可能性）"); if(!j.ok){ var err=new Error(j.error||"error"); err.code=j.code; throw err; } return j; })
+    .catch(function(e){ clearTimeout(timer); if(e&&e.name==='AbortError') throw new Error("通信がタイムアウトしました"); throw e; });
+}
+function onAuthLost(){ try{ localStorage.removeItem("tks_pwa_token"); }catch(e){} API.token=""; toast("端末の登録が無効です。登録し直してください"); show("scr-enroll"); }
+function apiProxy(quiet){
+  var ok=null, fail=null, uo=null;
+  var p={ withSuccessHandler:function(f){ ok=f; return px; }, withFailureHandler:function(f){ fail=f; return px; }, withUserObject:function(o){ uo=o; return px; } };
+  var px=new Proxy(p,{ get:function(t,name){
+    if(name in t) return t[name];
+    if(typeof name!=="string") return undefined;
+    return function(){
+      var args=Array.prototype.slice.call(arguments);
+      var slow=(name==="submitSiteInspection"||name==="updateInspection"||name==="makeInspectionPdf"||name==="getReportHtml");
+      if(!quiet) busy(1);
+      apiPost({ action:'rpc', fn:name, args:args, token:API.token }, slow?300000:90000)
+        .then(function(j){ if(!quiet) busy(-1); if(ok) ok(j.result, uo); })
+        .catch(function(e){ if(!quiet) busy(-1); if(e&&e.code===401) onAuthLost(); if(fail) fail(e, uo); else if(!quiet) toast("通信エラー："+((e&&e.message)||e)); });
+    };
+  }});
+  return px;
+}
+/* サーバー呼び出し：通信中は画面上部に帯を出す（quiet=true は裏方の通信なので出さない）。失敗時の案内も共通化 */
+var BUSY=0;
+function busy(d){ BUSY=Math.max(0,BUSY+d); var on=BUSY>0; $("busy").classList.toggle("hide",!on); $("busyTxt").classList.toggle("hide",!on); }
+function srv(quiet){
+  if(!isGas()) return API.token ? apiProxy(quiet) : null;
+  var run=google.script.run; if(quiet) return run;
+  var ok=null, fail=null, uo=null;
+  var p={ withSuccessHandler:function(f){ ok=f; return px; }, withFailureHandler:function(f){ fail=f; return px; }, withUserObject:function(o){ uo=o; return px; } };
+  var px=new Proxy(p,{ get:function(t,name){
+    if(name in t) return t[name];
+    if(typeof name!=="string") return undefined;
+    return function(){
+      busy(1);
+      var r=run.withSuccessHandler(function(res,obj){ busy(-1); if(ok) ok(res,obj); })
+               .withFailureHandler(function(err,obj){ busy(-1); if(fail) fail(err,obj); else toast("通信エラー："+((err&&err.message)||err)); });
+      if(uo!=null) r=r.withUserObject(uo);
+      return r[name].apply(r,arguments);
+    };
+  }});
+  return px;
+}
+
+function loadSites(){
+  var r=srv(); if(!r){ renderSites([]); return; }
+  r.withSuccessHandler(function(list){ sites=list||[]; renderSites(sites); })
+   .withFailureHandler(function(){ renderSites([]); }).getSites();
+}
+function renderSites(list){
+  var q=($("siteSearch").value||"").trim();
+  var box=$("siteList"); box.innerHTML="";
+  var f=list.filter(function(s){ return !q || s.site.indexOf(q)>=0; });
+  if(!f.length){ box.innerHTML='<div class="sec" style="color:#777;font-size:13px;">登録された現場がありません。下のボタンから登録してください。</div>'; return; }
+  var sec=document.createElement("div"); sec.className="sec";
+  f.forEach(function(s){
+    var d=document.createElement("div"); d.className="row"; d.onclick=function(){ pickSite(s.site); };
+    d.innerHTML='<div class="t"><p class="nm">'+esc(s.site)+'</p><p class="sb2">機器 '+s.count+'台'+(s.freq?' ／ 年'+s.freq+'回':'')+(s.last?' ／ 前回 '+s.last:'')+'</p></div><i style="color:#bbb">›</i>';
+    sec.appendChild(d);
+  });
+  box.appendChild(sec);
+}
+$("siteSearch").addEventListener("input",function(){ renderSites(sites); });
+
+function newSite(){
+  var name=prompt("新しい現場名を入力してください"); if(!name) return;
+  S.site=name.trim(); S.freq=2; S.units=[];
+  openList(); toast("年間点検回数を選び、機器を追加してください");
+}
+/* ================= 端末内保存（IndexedDB。使えない環境は localStorage／メモリに退避） ================= */
+var DB=null, MEM_OUTBOX={};
+function idb(){ return new Promise(function(res,rej){
+  if(DB) return res(DB); if(!window.indexedDB) return rej(new Error("no indexedDB"));
+  var q=indexedDB.open("tks_tenken",1);
+  q.onupgradeneeded=function(e){ var d=e.target.result; if(!d.objectStoreNames.contains("kv")) d.createObjectStore("kv"); if(!d.objectStoreNames.contains("outbox")) d.createObjectStore("outbox",{keyPath:"id"}); };
+  q.onsuccess=function(){ DB=q.result; DB.onclose=function(){ DB=null; }; DB.onversionchange=function(){ try{ DB.close(); }catch(e){} DB=null; }; res(DB); };
+  q.onerror=function(){ rej(q.error||new Error("idb open error")); }; q.onblocked=function(){ rej(new Error("idb blocked")); };
+}); }
+function tx(store,mode,fn){ return idb().then(function(d){ return new Promise(function(res,rej){
+  var t=d.transaction(store,mode), r=fn(t.objectStore(store));
+  t.oncomplete=function(){ res(r?r.result:undefined); }; t.onerror=function(){ rej(t.error); }; t.onabort=function(){ rej(t.error||new Error("abort")); };
+}); }).catch(function(e){ DB=null; throw e; }); }
+function kvGet(k){ return tx("kv","readonly",function(s){ return s.get(k); }).then(function(v){ return v===undefined?null:v; }).catch(function(){ try{ return JSON.parse(localStorage.getItem("tks_"+k)||"null"); }catch(e){ return null; } }); }
+function kvSet(k,v){ return tx("kv","readwrite",function(s){ return s.put(v,k); }).catch(function(){ try{ localStorage.setItem("tks_"+k,JSON.stringify(v)); }catch(e){} }); }
+function kvDel(k){ return tx("kv","readwrite",function(s){ return s.delete(k); }).catch(function(){ try{ localStorage.removeItem("tks_"+k); }catch(e){} }); }
+function obPut(c){ MEM_OUTBOX[c.id]=c; return tx("outbox","readwrite",function(s){ return s.put(c); }).catch(function(){}); }
+function obDel(id){ delete MEM_OUTBOX[id]; return tx("outbox","readwrite",function(s){ return s.delete(id); }).catch(function(){}); }
+function obAll(){ return tx("outbox","readonly",function(s){ return s.getAll(); }).then(function(a){ (a||[]).forEach(function(c){ MEM_OUTBOX[c.id]=c; }); return Object.keys(MEM_OUTBOX).map(function(k){ return MEM_OUTBOX[k]; }); }).catch(function(){ return Object.keys(MEM_OUTBOX).map(function(k){ return MEM_OUTBOX[k]; }); }); }
+function siteCacheKey(site){ return "site:"+site; }
+function pickSite(site){
+  S.site=site; S.__opened=false;
+  kvGet(siteCacheKey(site)).then(function(cached){
+    if(cached&&cached.units&&cached.units.length) applySiteData(cached);   // 端末に取り込んだ機器一覧を即表示（電波がなくてもここまで動く）。最新はすぐ後ろで読み直す
+    var r=srv();
+    if(!r){ if(!S.__opened){ S.units=[]; S.__opened=true; openList(); } return; }
+    if(!S.__opened) toast("機器一覧を読み込み中…");
+    r.withSuccessHandler(function(d){
+      if(d&&d.ok){ kvSet(siteCacheKey(site),{units:d.units,prevs:d.prevs,at:Date.now()}); applySiteData(d); }
+      else if(!S.__opened){ S.units=[]; S.__opened=true; openList(); toast("機器一覧を読み込めませんでした"); }
+    }).withFailureHandler(function(){ if(!S.__opened){ S.units=[]; S.__opened=true; openList(); toast("電波がありません。取り込み済みのデータがないため開けません"); } })
+     .openSiteData(site, $("idate").value||"");
+  });
+}
+/* 電波のある所で、全現場の機器一覧・前回点検を端末に取り込む */
+function prefetchAllSites(){
+  var r=srv(); if(!r){ toast("通信できません"); return; }
+  var list=sites.slice(); if(!list.length){ toast("現場がありません"); return; }
+  var info=$("prefetchInfo"); var i=0, okN=0;
+  (function next(){
+    if(i>=list.length){ info.textContent="取り込み完了："+okN+"/"+list.length+" 現場（"+new Date().toLocaleString("ja-JP")+"）"; toast("全現場を取り込みました"); kvSet("prefetchAt",Date.now()); return; }
+    var st=list[i++]; info.textContent="取り込み中… "+i+"/"+list.length+"　"+st.site;
+    srv(true).withSuccessHandler(function(d){ if(d&&d.ok){ kvSet(siteCacheKey(st.site),{units:d.units,prevs:d.prevs,at:Date.now()}); okN++; } next(); })
+             .withFailureHandler(function(){ next(); }).openSiteData(st.site, "");
+  })();
+}
+/* 機器一覧・保存状況・前回点検を画面へ。初回は一覧を作って開き、2回目以降（最新データ到着時）は入力中の内容を残したまま差し替える */
+function applySiteData(d){
+  var listed=d.units||[];
+  if(!S.__opened){
+    S.units=listed.map(function(e){ return blankUnit(e); });
+    var f=listed.map(function(e){return e.freq;}).filter(function(x){return x;})[0]; S.freq=f||S.freq||2;
+    var pv=d.prevs||{}; var st=(d.status&&d.status.ok)?d.status:null; S.__opened=true;
+    loadDraft(function(){ S.prevs=pv; S.__opened=true; if(st) STATUS=st; openList(); });
+    return;
+  }
+  var byKey={}; S.units.forEach(function(u){ byKey[unitKey(u)]=u; });
+  var next=[];
+  listed.forEach(function(e){ var b=blankUnit(e), k=unitKey(b), u=byKey[k];
+    if(u){ u.row=e.row||u.row; if(e.type) u.type=e.type; next.push(u); delete byKey[k]; } else next.push(b); });
+  Object.keys(byKey).forEach(function(k){ var u=byKey[k]; if(u.done||Object.keys(u.judged||{}).length) next.push(u); });   // 台帳から消えても入力中なら残す
+  S.units=next;
+  if(d.prevs) S.prevs=d.prevs;
+  if(d.status&&d.status.ok) STATUS=d.status;
+  if(!$("scr-list").classList.contains("hide")) renderList();
+}
+function refreshSiteData(){ var r=srv(true); if(!r||!S.site) return;
+  r.withSuccessHandler(function(d){ if(d&&d.ok){ kvSet(siteCacheKey(S.site),{units:d.units,prevs:d.prevs,at:Date.now()}); applySiteData(d); } })
+   .withFailureHandler(function(){}).openSiteData(S.site, S.date||$("idate").value||""); }
+function blankUnit(e){
+  return { row:e.row||null, no:e.no||"", type:e.type||"", name:e.name||"", model:e.model||"", serial:e.serial||"",
+           judged:{}, overall:"", grade:"", action:"", defects:"", remarks:"", photosAll:[], photosBad:[], done:false, prev:null };
+}
+
+/* 保存済みかどうか：保存した時点の内容（署名）と今の内容が同じなら再送しない */
+function unitSig(u){
+  var jd=Object.keys(u.judged||{}).filter(function(k){return u.judged[k];}).sort().map(function(k){return [k,u.judged[k]];});
+  var ph=function(a){ return (a||[]).map(function(p){ return [ String(p.data||p||"").length, p.note||"" ]; }); };
+  return JSON.stringify([jd,u.overall||"",u.grade||"",u.action||"",u.defects||"",u.remarks||"",ph(u.photosAll),ph(u.photosBad)]);
+}
+function isSaved(u){ return !!u.savedSig && u.savedSig===unitSig(u); }
+
+/** 点検まとめくん（連携版）を、この現場の機器名一覧つきで新しいタブに開く */
+var PHOTO_PDF_URL='https://tkskashitani.github.io/tks-app/photo-pdf-tenken.html';
+function openPhotoPdf(names){
+  var list = names && names.length ? names : (S.units||[]).map(function(u){ return u.name||''; });
+  var items=list.map(function(n){ return String(n||'').replace(/\|/g,'／'); }).filter(function(x){return x;});
+  var site=(LAST&&LAST.site)||S.site||'', date=(LAST&&LAST.date)||S.date||'';
+  var url=PHOTO_PDF_URL+'?site='+encodeURIComponent(site)+'&items='+encodeURIComponent(items.join('|'))+'&date='+encodeURIComponent(date);
+  window.open(url,'_blank');
+}
+
+/* ---------- 出力画面（点検表PDF・写真PDF） ---------- */
+var LAST=null;   // {site,date,rows:[{row,..}]|null,names:[],fromList:bool}
+function openOutputs(){
+  if(!S.site){ toast("現場を選んでください"); return; }
+  showDone({ site:S.site, date:S.date||$("idate").value, rows:null, names:S.units.map(function(u){return u.name;}), fromList:true });
+}
+var DONE_DATES=[];
+function showDone(info){
+  LAST=info;
+  $("doneTitle").textContent = info.fromList ? "出力" : "保存しました";
+  $("doneBack").textContent = info.fromList ? "‹ 機器一覧へ" : "‹ 現場選択へ";
+  $("pdfLinks").innerHTML=""; $("photoLinks").innerHTML=""; $("rptWrap").classList.add("hide"); $("rptInner").innerHTML=""; RPT.fmt=null;
+  $("doneDateRow").classList.toggle("hide", !info.fromList);
+  LAST.dateInfo=null; updateDoneHead();
+  show("scr-done");
+  if(info.fromList) loadDoneDates();            // 保存済みの記録がある日を一覧にして、その中から選ぶ（既定＝いちばん新しい日）
+  else { loadInspectionPhotos(); loadPhotoPdfs(); loadDoneUnits(); }
+}
+function updateDoneHead(){
+  $("doneSub").textContent = LAST.site+" ／ 点検日 "+(LAST.date?String(LAST.date).replace(/-/g,"/"):"");
+  var di=LAST.dateInfo;
+  $("doneCnt").textContent = LAST.rows ? "今回保存した "+LAST.rows.length+"台分。点検表のあとに写真ページが続きます"
+    : (di ? di.label+" の保存済み記録 "+di.count+"台分"+(di.inspectors?"（点検者 "+di.inspectors+"）":"")+"から作成します。点検表のあとに写真ページが続きます"
+          : "この現場・この点検日の保存済み記録から作成します");
+}
+function dateKeyJs(v){ var m=/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/.exec(String(v||"")); return m ? m[1]+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[3]).slice(-2) : String(v||""); }
+function loadDoneDates(){ loadOutput(LAST&&LAST.date); }
+/* 出力画面：点検日一覧・その日の記録・写真・まとめくんPDF を1回の通信でまとめて取得 */
+function loadOutput(date){
+  var sel=$("doneDate"); sel.innerHTML='<option value="">読み込み中…</option>'; DONE_DATES=[];
+  $("insPhotos").innerHTML='<span style="color:#777">読み込み中…</span>'; $("photoLinks").innerHTML='<span style="color:#777">読み込み中…</span>';
+  $("doneUnits").innerHTML='<span style="color:#777;font-size:12px">読み込み中…</span>'; $("doneUnitsCnt").textContent="";
+  var r=srv(); if(!r){ sel.innerHTML='<option value="">プレビューモードでは使えません</option>'; return; }
+  loadPhotoPdfs();   // まとめくんPDF一覧（ドライブ検索で遅め）は並行して別に読む
+  r.withSuccessHandler(function(res){
+    if(!res||!res.ok){ sel.innerHTML='<option value="">点検日を読み込めませんでした</option>'; updateDoneHead(); return; }
+    DONE_DATES=res.dates||[];
+    if(!DONE_DATES.length){ sel.innerHTML='<option value="">この現場の保存済み記録はまだありません</option>'; LAST.dateInfo=null; updateDoneHead(); $("insPhotos").innerHTML=""; renderDoneUnits([]); return; }
+    sel.innerHTML=DONE_DATES.map(function(d){ return '<option value="'+d.date+'">'+d.label+'　'+d.count+'台'+(d.inspectors?'　'+esc(d.inspectors):'')+(d.pdf?'　📄PDF作成済':'')+'</option>'; }).join('');
+    sel.value=res.date; LAST.date=res.date; LAST.dateInfo=res.dateInfo||null; LAST.rows=null;
+    updateDoneHead(); renderPhotos(res.photos); renderDoneUnits(res.units);
+  }).withFailureHandler(function(){ sel.innerHTML='<option value="">点検日を読み込めませんでした</option>'; updateDoneHead(); }).getOutputData(LAST.site, date||"");
+}
+function changeDoneDate(){
+  var sel=$("doneDate"); if(!sel.value||!LAST) return;
+  $("pdfLinks").innerHTML=""; $("rptWrap").classList.add("hide"); $("rptInner").innerHTML=""; RPT.fmt=null;
+  loadOutput(sel.value);
+}
+function doneBack(){ if(LAST&&LAST.fromList) show("scr-list"); else resetAll(); }
+function makePdf(fmt){
+  if(!LAST) return;
+  var box=$("pdfLinks"); var bs=document.querySelectorAll("#scr-done .pdfbtn");
+  var r=srv(); if(!r){ box.innerHTML='<div class="info">プレビューモードでは作成できません</div>'; return; }
+  bs.forEach(function(b){ b.disabled=true; });
+  box.innerHTML='<div class="info">PDFを作成中… 台数によって1〜2分かかります。この画面のままお待ちください。</div>';
+  r.withSuccessHandler(function(res){
+    bs.forEach(function(b){ b.disabled=false; });
+    if(res&&res.ok){
+      box.innerHTML='<div class="info">✅ '+esc(res.name)+'（'+res.count+'台・'+(res.pages||'')+'ページ・写真'+(res.photoCount||0)+'枚）<br><a href="'+res.url+'" target="_blank" rel="noopener" style="font-weight:600;font-size:15px">▶ PDFを開く</a>'
+        +(res.warnings&&res.warnings.length?'<br><span style="color:#843C39">'+esc(res.warnings.join(' / '))+'</span>':'')
+        +'<br><span style="color:#666;font-size:11px">ドライブ「点検報告書PDF」にも保存済み</span></div>';
+    } else box.innerHTML='<div class="info" style="color:#843C39">作成できませんでした：'+esc((res&&res.error)||'')+'</div>';
+  }).withFailureHandler(function(e){ bs.forEach(function(b){ b.disabled=false; }); box.innerHTML='<div class="info" style="color:#843C39">通信エラー：'+esc((e&&e.message)||e)+'</div>'; })
+   .makeInspectionPdf({ site:LAST.site, date:LAST.date, format:fmt, rows: LAST.rows ? LAST.rows.map(function(x){ return x.row; }).filter(function(x){ return x; }) : null });
+}
+var RPT={fmt:null,zoom:false}; var INS_PHOTOS=[];
+function reqRows(){ return LAST&&LAST.rows ? LAST.rows.map(function(x){return x.row;}).filter(function(x){return x;}) : null; }
+function previewReport(fmt){
+  if(!LAST) return; var r=srv(); if(!r){ toast("プレビューモードでは使えません"); return; }
+  var wrap=$("rptWrap"), inner=$("rptInner"), info=$("rptInfo");
+  wrap.classList.remove("hide"); inner.innerHTML=""; inner.style.transform="none"; $("rptScale").style.height="auto";
+  info.textContent="プレビューを作成中…（写真の枚数によって少し時間がかかります）";
+  r.withSuccessHandler(function(res){
+    if(!res||!res.ok){ info.textContent="作成できませんでした："+((res&&res.error)||""); return; }
+    RPT.fmt=fmt; RPT.zoom=false; inner.innerHTML=res.html;
+    var zb=document.createElement("button"); zb.className="sb"; zb.style.cssText="height:28px;padding:0 10px;margin-left:8px"; zb.textContent="拡大"; zb.onclick=toggleZoom;
+    info.innerHTML=(fmt==="a4"?"A4縦":"フジマック様式（A3横）")+"　"+res.pages+"ページ・写真"+res.photoCount+"枚"+(res.warnings&&res.warnings.length?"<br><span style='color:#843C39'>"+esc(res.warnings.join(" / "))+"</span>":"");
+    info.appendChild(zb);
+    fitPreview();
+    inner.querySelectorAll("img").forEach(function(im){ im.addEventListener("load",fitPreview); });
+    setTimeout(fitPreview,400); setTimeout(fitPreview,2000);
+    wrap.scrollIntoView({behavior:"smooth",block:"start"});
+  }).withFailureHandler(function(e){ info.textContent="通信エラー："+((e&&e.message)||e); })
+   .getReportHtml({ site:LAST.site, date:LAST.date, format:fmt, rows:reqRows() });
+}
+function fitPreview(){
+  var box=$("rptScale"), inner=$("rptInner"); var page=inner.querySelector(".page"); if(!page) return;
+  var pw=page.offsetWidth||794; var s=RPT.zoom?1:Math.min(1,(box.clientWidth-16)/pw);
+  inner.style.width=pw+"px"; inner.style.transform="scale("+s+")";
+  box.style.overflowX=RPT.zoom?"auto":"hidden";
+  box.style.height=(inner.scrollHeight*s+16)+"px";
+}
+function toggleZoom(){ RPT.zoom=!RPT.zoom; fitPreview(); var b=$("rptInfo").querySelector("button"); if(b) b.textContent=RPT.zoom?"幅に合わせる":"拡大"; }
+window.addEventListener("resize",function(){ if(RPT.fmt) fitPreview(); });
+function openLightbox(src,cap){ $("lbImg").src=src; $("lbCap").textContent=cap||""; $("lightbox").classList.remove("hide"); }
+function renderPhotos(res){
+  var box=$("insPhotos"); if(!box) return;
+  if(!res||!res.ok||!res.photos||!res.photos.length){ box.innerHTML='<span style="color:#777">点検アプリで撮った写真はありません</span>'; return; }
+  INS_PHOTOS=res.photos; box.innerHTML=""; var g=document.createElement("div"); g.className="gal";
+  res.photos.forEach(function(p){
+    var d=document.createElement("div"); d.className="gi";
+    var im=document.createElement("img"); im.src=p.thumb.replace(/sz=w\d+/,"sz=w400"); im.loading="lazy"; d.appendChild(im);
+    var t=document.createElement("p"); t.textContent=p.unit+(p.note?"　"+p.note:""); d.appendChild(t);
+    d.onclick=function(){ openLightbox(p.thumb.replace(/sz=w\d+/,"sz=w1600"), p.unit+(p.cat?"　"+p.cat:"")+(p.note?"："+p.note:"")); };
+    g.appendChild(d);
+  });
+  box.appendChild(g);
+}
+function loadInspectionPhotos(){
+  var r=srv(); var box=$("insPhotos"); if(!r||!LAST){ return; }
+  box.innerHTML='<span style="color:#777">読み込み中…</span>';
+  r.withSuccessHandler(renderPhotos).withFailureHandler(function(){ box.innerHTML=""; }).getInspectionPhotos({ site:LAST.site, date:LAST.date, rows:reqRows() });
+}
+function renderPhotoPdfs(list){
+  var box=$("photoLinks"); if(!box) return;
+  if(!list||!list.length){ box.innerHTML='<span style="color:#777">まだ登録された写真PDFはありません</span>'; return; }
+  box.innerHTML=list.map(function(p){
+    return '<div class="row"><div class="t"><p class="nm">📷 '+esc(p.name)+'</p><p class="sb2">'+esc(p.at)+(p.date?' ／ 点検日 '+esc(p.date):'')+(p.photos?' ／ 写真'+p.photos+'枚':'')+'</p></div><a href="'+p.url+'" target="_blank" rel="noopener" style="font-weight:600">開く</a></div>';
+  }).join('');
+}
+function loadPhotoPdfs(){
+  var r=srv(); var box=$("photoLinks"); if(!r||!LAST){ return; }
+  box.innerHTML='<span style="color:#777">読み込み中…</span>';
+  r.withSuccessHandler(renderPhotoPdfs).withFailureHandler(function(){ box.innerHTML=''; }).getPhotoPdfs(LAST.site);
+}
+function openList(){
+  $("listTitle").textContent=S.site;
+  if(!$("idate").value) $("idate").valueAsDate=new Date();
+  $("idate").onchange=function(){
+    // 点検日を変えたら、その日の保存済み記録をすぐ読み直す（45秒ごとの自動更新を待たない）
+    S.date=$("idate").value; saveDraft(); renderList();
+    loadStatus(function(res){ var n=Object.keys((res&&res.ok&&res.done)||{}).length;
+      toast(String(S.date).replace(/-/g,"/")+" の保存済み記録："+n+"台"+(n?"　「✎ 修正」で直せます":"")); });
+  };
+  $("iinspector").oninput=function(){ S.inspector=$("iinspector").value; saveDraft(); };
+  if(!S.inspector && API.name) S.inspector=API.name;
+  if(S.inspector) $("iinspector").value=S.inspector;
+  $("ifreq").value=String(S.freq||2);
+  $("ifreq").onchange=function(){ S.freq=parseInt($("ifreq").value,10); saveDraft(); syncEquip(); toast("年"+S.freq+"回に更新しました"); };
+  S.date=$("idate").value;
+  renderList(); show("scr-list"); startStatusPolling(!!(STATUS&&STATUS.now)); updateUnsentBar();
+}
+function renderList(){
+  var done=S.units.filter(function(u){return u.done;}).length;
+  var savedMine=S.units.filter(function(u){return u.done && isSaved(u);}).length;
+  $("listSub").textContent=S.date+(S.inspector?" ／ 点検者 "+S.inspector:"")+(S.freq?" ／ 年"+S.freq+"回":"");
+  var savedToday=Object.keys(STATUS.done||{}).length;
+  $("cntInfo").innerHTML="登録機器 "+S.units.length+"台　<span style='color:#375623;font-weight:600'>"+done+"台 点検済</span>"+(savedMine?"（うち保存済 "+savedMine+"台）":"")+(savedToday?"　本日保存済 "+savedToday+"台":"")+(STATUS.now?"　<span style='color:#999'>（他の端末の状況 "+STATUS.now+" 時点）</span>":"");
+  var box=$("equipList"); box.innerHTML="";
+  S.units.forEach(function(u,i){
+    var d=document.createElement("div"); d.className="row";
+    var k=unitKey(u), dn=STATUS.done[k], cl=STATUS.claims[k];
+    var badge = (u.done && u.pending) ? '<span class="badge b-pend">送信待ち</span>'
+      : (u.done && isSaved(u)) ? '<span class="badge b-done">保存済</span>'
+      : u.done ? '<span class="badge b-done">入力済</span>'
+      : (dn ? '<span class="badge b-done">保存済 '+esc(dn.inspector||"")+' '+esc(dn.at||"")+'</span>'+(dn.row?'<button type="button" class="edtb" data-row="'+dn.row+'">✎ 修正</button>':'')
+      : (cl && !claimIsMine(cl) ? '<span class="badge b-warn">点検中 '+esc(cl.name||"別の端末")+'</span>'
+      : (u.prevWarn ? '<span class="badge '+(u.prevWarn==="bad"?"b-bad":"b-warn")+'">前回 要対応</span>' : '<span class="badge b-none">未</span>')));
+    d.innerHTML='<div class="t"><p class="nm">'+(i+1)+'号機　'+esc(u.name||"（機器名未設定）")+'</p>'+
+                '<p class="sb2">'+esc(u.type||"種別未設定")+(u.model?" ／ "+esc(u.model):"")+'</p></div>'+badge;
+    if(editMode){ d.onclick=function(){ openEditor(i); }; }
+    else { d.onclick=function(){ openUnit(i); }; }
+    var eb=d.querySelector(".edtb"); if(eb){ eb.onclick=function(ev){ ev.stopPropagation(); openUnitEdit(Number(eb.getAttribute("data-row")),"list"); }; }
+    box.appendChild(d);
+  });
+}
+function toggleEdit(){ editMode=!editMode; $("editBtn").textContent=editMode?"編集を終える":"機器を編集"; renderList(); }
+function addUnit(){ openEditor(-1); }
+function editUnit(i){ openEditor(i); }
+function delUnit(i){ openEditor(i); }
+
+var editIdx=-1, etype="";
+function openEditor(i){
+  editIdx=i;
+  var u=(i>=0)?S.units[i]:{type:"",name:"",model:"",serial:""};
+  etype=u.type||"";
+  $("editTitle").textContent=(i>=0)?"機器を編集":"機器を追加";
+  $("ename").value=u.name||""; $("emodel").value=u.model||""; $("eserial").value=u.serial||"";
+  document.querySelectorAll("#etype .tb").forEach(function(b){
+    b.className="tb"+(b.dataset.t===etype?" on":"");
+    b.onclick=function(){
+      etype=b.dataset.t;
+      document.querySelectorAll("#etype .tb").forEach(function(x){ x.className="tb"; });
+      b.className="tb on";
+    };
+  });
+  $("edelWrap").style.display=(i>=0)?"block":"none";
+  show("scr-edit");
+}
+function saveEditor(){
+  if(!etype){ toast("機器種別を選んでください"); return; }
+  var name=$("ename").value.trim();
+  if(!name){ toast("機器名を入力してください"); return; }
+  var d={type:etype,name:name,model:$("emodel").value.trim(),serial:$("eserial").value.trim()};
+  if(editIdx>=0){ var u=S.units[editIdx]; u.type=d.type; u.name=d.name; u.model=d.model; u.serial=d.serial; }
+  else { S.units.push(blankUnit(d)); }
+  syncEquip(); renderList(); show("scr-list"); toast("保存しました");
+}
+function deleteEditor(){
+  if(editIdx<0) return;
+  if(!confirm(S.units[editIdx].name+" を削除しますか？")) return;
+  S.units.splice(editIdx,1); syncEquip(); renderList(); show("scr-list"); toast("削除しました");
+}
+function syncEquip(){
+  saveDraft();
+  var r=srv(); if(!r) return;
+  var list=S.units.map(function(u){ return {row:u.row,type:u.type,name:u.name,model:u.model,serial:u.serial}; });
+  r.withSuccessHandler(function(res){ if(res&&res.ok) toast("機器構成を台帳に反映しました"); }).saveEquipment(S.site,list,S.freq);
+}
+
+/* ---------- 保存済みの記録をアプリで修正（上書き） ---------- */
+var EDIT=null;   // {row, from:'list'|'done', backup, rec}
+function findUnitIndexFor(rec){
+  var key=String(rec.no||"").trim();
+  for(var i=0;i<S.units.length;i++){ var u=S.units[i]; if(key && String(u.no||"").trim()===key) return i; }
+  for(var j=0;j<S.units.length;j++){ var w=S.units[j]; if(!key && String(w.name||"")===String(rec.equip||"") && String(w.model||"")===String(rec.model||"") && String(w.serial||"")===String(rec.serial||"")) return j; }
+  for(var k=0;k<S.units.length;k++){ var z=S.units[k]; if(String(z.name||"")===String(rec.equip||"") && String(z.type||"")===String(rec.type||"")) return k; }
+  return -1;
+}
+function openUnitEdit(row, from){
+  var r=srv(); if(!r){ toast("プレビューモードでは使えません"); return; }
+  if(!row){ toast("記録の行が分かりません"); return; }
+  toast("保存済みの記録を読み込み中…");
+  r.withSuccessHandler(function(rec){
+    if(!rec||!rec.ok){ toast("記録を読めませんでした"+(rec&&rec.error?"："+rec.error:"")); return; }
+    var i=findUnitIndexFor(rec);
+    if(i<0){ toast("この機器（"+(rec.equip||"")+"）が機器一覧にありません"); return; }
+    var u=S.units[i];
+    EDIT={ row:row, from:from||"list", rec:rec, backup:JSON.parse(JSON.stringify(u)) };
+    cur=i;
+    // 記録の内容をフォームへ
+    var list=ITEMS_BY_TYPE[u.type]||[]; u.judged={};
+    list.forEach(function(it,idx){ var j=rec.items[it[1]]; if(j) u.judged[idx]=j; });
+    u.overall=rec.overall||""; u.action=rec.action||""; u.grade=String(rec.grade||"").toUpperCase();
+    u.defects=rec.defects||""; u.remarks=rec.remarks||""; u.prev=null;
+    u.photosAll=(rec.photos||[]).filter(function(p){return p.cat!=="不良箇所";}).map(function(p){ return {id:p.id,url:p.url,thumb:p.thumb,note:p.note||"",cat:"全体"}; });
+    u.photosBad=(rec.photos||[]).filter(function(p){return p.cat==="不良箇所";}).map(function(p){ return {id:p.id,url:p.url,thumb:p.thumb,note:p.note||"",cat:"不良箇所"}; });
+    $("unitTitle").textContent="修正："+(i+1)+"号機　"+(u.name||"");
+    $("unitSub").textContent=u.type+(u.model?" ／ "+u.model:"")+(u.serial?" ／ "+u.serial:"");
+    $("editBar").textContent="保存済みの記録（点検日 "+String(rec.date||"").replace(/-/g,"/")+"　点検者 "+(rec.inspector||"")+"）を修正しています。○△◎×・写真・判定を直して、下の「修正を保存（上書き）」を押してください。写真の×は記録から外すだけで、ドライブの写真は消えません。写真の「⇄ 別の機器へ」で、間違えて付けた写真を別の機器の記録へ移せます（その場で反映）。";
+    $("editBar").classList.remove("hide");
+    $("udefects").value=u.defects; $("uremarks").value=u.remarks;
+    defectOnly=false; var fb=$("qbFlt"); if(fb) fb.className="qb"; $("qbPrev").classList.add("hide"); $("prevInfo").classList.add("hide");
+    renderThumbs(); renderItems(u); renderSummary(u);
+    $("unitDoneBtn").classList.add("hide"); $("unitSaveEditBtn").classList.remove("hide");
+    document.querySelector("#scr-unit .back").textContent="‹ 修正をやめて戻る";
+    show("scr-unit");
+  }).withFailureHandler(function(){ toast("通信エラー"); }).getInspectionRecord(row);
+}
+/* 修正モード：写真を同じ現場・同じ点検日の別の機器の記録へ移す */
+function movePhotoTo(k,i){
+  if(!EDIT||cur<0) return; var u=S.units[cur]; var arr=(k==="A"?u.photosAll:u.photosBad); var p=arr[i]; if(!p||!p.id) return;
+  var r=srv(); if(!r) return;
+  $("pickTitle").textContent="どの機器の記録へ移しますか？";
+  $("pickSub").textContent="点検日 "+String(EDIT.rec.date||"").replace(/-/g,"/")+" に保存済みの機器だけ選べます。移動先の機器がまだ保存されていないときは、先にその機器を点検して保存してください。";
+  $("pickList").innerHTML='<span style="color:#777;font-size:12px">読み込み中…</span>'; $("pick").classList.remove("hide");
+  r.withSuccessHandler(function(res){
+    var list=((res&&res.ok&&res.units)||[]).filter(function(x){ return x.row!==EDIT.row; });
+    if(!list.length){ $("pickList").innerHTML='<span style="color:#777;font-size:12px">この日に保存済みの他の機器がありません</span>'; return; }
+    $("pickList").innerHTML=list.map(function(x){
+      return '<div class="row" data-row="'+x.row+'"><div class="t"><p class="nm">'+esc(x.name||"")+(x.no?'　<span style="color:#666;font-weight:400;font-size:12px">'+esc(x.no)+'</span>':'')+'</p>'+
+             '<p class="sb2">'+esc(x.type||"")+(x.model?" ／ "+esc(x.model):"")+(x.photos?'　写真'+x.photos+'枚':'')+'</p></div><span style="color:#1F3864;font-weight:600">ここへ</span></div>';
+    }).join('');
+    Array.prototype.forEach.call($("pickList").querySelectorAll(".row"),function(d){
+      d.onclick=function(){
+        var toRow=Number(d.getAttribute("data-row")); var nm=d.querySelector(".nm").textContent;
+        if(!confirm("この写真を「"+nm+"」の記録へ移します。よろしいですか？")) return;
+        $("pick").classList.add("hide"); toast("移動中…");
+        srv().withSuccessHandler(function(res2){
+          if(!res2||!res2.ok){ alert("移せませんでした"+(res2&&res2.error?"：\n"+res2.error:"")); return; }
+          var idx=arr.indexOf(p); if(idx>=0) arr.splice(idx,1);
+          renderThumbs(); toast("「"+(res2.toName||nm)+"」の記録へ移しました");
+        }).withFailureHandler(function(){ alert("通信エラーで移せませんでした"); })
+         .movePhoto({ fromRow:EDIT.row, toRow:toRow, photoId:p.id, site:S.site, editor:S.inspector||"" });
+      };
+    });
+  }).withFailureHandler(function(){ $("pickList").innerHTML='<span style="color:#A32D2D;font-size:12px">読み込めませんでした</span>'; })
+   .getInspectionUnits(S.site, EDIT.rec.date);
+}
+function exitEditMode(){
+  var e=EDIT; EDIT=null;
+  if(e && cur>=0 && S.units[cur]) S.units[cur]=e.backup;   // 修正前の状態（未入力など）に戻す＝「保存」で二重送信しない
+  cur=-1;
+  $("editBar").classList.add("hide"); $("unitDoneBtn").classList.remove("hide"); $("unitSaveEditBtn").classList.add("hide");
+  document.querySelector("#scr-unit .back").textContent="‹ 機器一覧へ";
+  return e;
+}
+function cancelEdit(){ var e=exitEditMode(); if(e&&e.from==="done"&&LAST){ show("scr-done"); } else { renderList(); show("scr-list"); } }
+function saveEdit(){
+  if(!EDIT||cur<0) return; var u=S.units[cur]; var e=EDIT;
+  u.defects=$("udefects").value; u.remarks=$("uremarks").value;
+  var list=ITEMS_BY_TYPE[u.type]||[];
+  var payload={ row:e.row, site:S.site, editor:S.inspector||"",
+    items:list.map(function(it,idx){ return {no:String(idx+1),place:it[0],name:it[1],judge:u.judged[idx]||"対象外"}; }),   // 未選択＝対象外（／）
+    summary:{overall:u.overall,action:u.action,grade:u.grade}, defects:u.defects, remarks:u.remarks,
+    keepPhotoIds:u.photosAll.concat(u.photosBad).filter(function(p){return p.id;}).map(function(p){return p.id;}),
+    newPhotos:u.photosAll.filter(function(p){return p.data;}).map(function(p){return {cat:"全体",data:p.data,note:p.note||""};})
+      .concat(u.photosBad.filter(function(p){return p.data;}).map(function(p){return {cat:"不良箇所",data:p.data,note:p.note||""};})) };
+  // 既存写真の説明（note）の変更も反映：keep のみの写真は note をサーバー側で保持するため、変更分は付け直す
+  payload.keepNotes={}; u.photosAll.concat(u.photosBad).forEach(function(p){ if(p.id) payload.keepNotes[p.id]=p.note||""; });
+  if(!confirm("この記録を上書き保存します。よろしいですか？")) return;
+  var btn=$("unitSaveEditBtn"); btn.disabled=true; btn.textContent="保存中…";
+  srv().withSuccessHandler(function(res){
+    btn.disabled=false; btn.textContent="修正を保存（上書き）";
+    if(!res||!res.ok){ alert("修正を保存できませんでした"+(res&&res.error?"：\n"+res.error:"")); return; }
+    toast("修正を保存しました（写真"+res.photoCount+"枚）");
+    var from=e.from; exitEditMode();
+    if(from==="done"&&LAST){ showDone(LAST); } else { renderList(); show("scr-list"); refreshSiteData(); }
+  }).withFailureHandler(function(){ btn.disabled=false; btn.textContent="修正を保存（上書き）"; alert("通信エラーで保存できませんでした。もう一度お試しください"); })
+   .updateInspection(payload);
+}
+function renderDoneUnits(list){
+  var box=$("doneUnits"), cnt=$("doneUnitsCnt"); if(!box) return; list=list||[];
+  cnt.textContent=list.length?"（"+list.length+"台）":"（なし）";
+  if(!list.length){ box.innerHTML='<span style="color:#777;font-size:12px">この日の保存済み記録はありません</span>'; return; }
+  box.innerHTML=list.map(function(x){
+    return '<div class="row" data-row="'+x.row+'"><div class="t"><p class="nm">'+esc(x.name||"")+(x.no?'　<span style="color:#666;font-weight:400;font-size:12px">'+esc(x.no)+'</span>':'')+'</p>'+
+      '<p class="sb2">'+esc(x.type||"")+(x.model?" ／ "+esc(x.model):"")+'　点検者 '+esc(x.inspector||"")+(x.grade?'　評価 '+esc(x.grade):'')+(x.overall?'　'+esc(x.overall):'')+(x.photos?'　写真'+x.photos+'枚':'')+'</p></div>'+
+      '<button type="button" class="edtb">✎ 修正</button></div>';
+  }).join('');
+  Array.prototype.forEach.call(box.querySelectorAll(".row"),function(d){ d.onclick=function(){ openUnitEdit(Number(d.getAttribute("data-row")),"done"); }; });
+}
+function loadDoneUnits(){
+  var box=$("doneUnits"), cnt=$("doneUnitsCnt"); if(!box) return;
+  box.innerHTML='<span style="color:#777;font-size:12px">読み込み中…</span>'; cnt.textContent="";
+  var r=srv(); if(!r||!LAST||!LAST.site||!LAST.date){ box.innerHTML=""; return; }
+  r.withSuccessHandler(function(res){ renderDoneUnits((res&&res.ok&&res.units)||[]); }).withFailureHandler(function(){ box.innerHTML=""; }).getInspectionUnits(LAST.site, LAST.date);
+}
+function openUnit(i){
+  cur=i; var u=S.units[i];
+  if(!u.type){ toast("先に機器種別を設定してください"); editUnit(i); return; }
+  var uk=unitKey(u), ucl=STATUS.claims[uk], udn=STATUS.done[uk];
+  if(ucl && !claimIsMine(ucl) && !confirm((ucl.name||"別の端末")+" さんが点検中の機器です。続けますか？")){ cur=-1; return; }
+  if(udn && !u.done && !confirm("この機器は本日 "+(udn.inspector||"")+" さんが "+udn.at+" に保存済みです。もう一度点検しますか？")){ cur=-1; return; }
+  claimCurrent(false); clearInterval(hbTimer);
+  hbTimer=setInterval(function(){ if(cur>=0 && !$("scr-unit").classList.contains("hide")) claimCurrent(false); else clearInterval(hbTimer); },60000);
+  $("unitTitle").textContent=(i+1)+"号機　"+(u.name||"");
+  $("unitSub").textContent=u.type+(u.model?" ／ "+u.model:"")+(u.serial?" ／ "+u.serial:"");
+  $("udefects").value=u.defects; $("uremarks").value=u.remarks;
+  defectOnly=false; var fb=$("qbFlt"); if(fb) fb.className="qb"; $("qbPrev").classList.add("hide");
+  renderThumbs(); renderItems(u); renderSummary(u);
+  $("prevInfo").classList.add("hide");
+  var pv=(S.prevs||{})[unitKey(u)];
+  if(pv!==undefined){ u.prev=(pv&&pv.ok)?pv:null; showPrev(u); applyPrev(u); }   // まとめて取得済み → 待ちなし
+  else { var r=srv(true); if(r){ r.withSuccessHandler(function(res){
+      u.prev=(res&&res.ok)?res:null; showPrev(u); applyPrev(u);
+    }).withFailureHandler(function(){}).getPreviousInspection({no:u.no,serial:u.serial,type:u.type,site:S.site}); } }
+  show("scr-unit");
+}
+function renderItems(u){
+  var list=ITEMS_BY_TYPE[u.type]||[]; var box=$("items"); box.innerHTML=""; var lastCat="";
+  list.forEach(function(it,idx){
+    if(it[0]!==lastCat){ var c=document.createElement("div"); c.className="cat"; c.textContent=it[0]; box.appendChild(c); lastCat=it[0]; }
+    var d=document.createElement("div"); d.className="item"; d.setAttribute("data-name",it[1]); d.setAttribute("data-idx",idx);
+    var q=document.createElement("div"); q.className="q"; q.textContent=it[1]; d.appendChild(q);
+    var bs=document.createElement("div"); bs.className="jrow";
+    JUDGES.forEach(function(j){
+      var b=document.createElement("button"); b.type="button"; b.className="jb"+(u.judged[idx]===j[0]?" "+j[1]:""); b.textContent=j[2]; b.title=j[0]; b.setAttribute("aria-label",j[0]);
+      b.onclick=function(){
+        var was=(u.judged[idx]===j[0]);   // 同じ記号をもう一度押したら未選択に戻す
+        bs.querySelectorAll(".jb").forEach(function(x){x.className="jb";});
+        if(was){ delete u.judged[idx]; } else { b.className="jb "+j[1]; u.judged[idx]=j[0]; }
+        saveDraft(); applyFilter();
+      };
+      bs.appendChild(b);
+    });
+    d.appendChild(bs); box.appendChild(d);
+  });
+  applyFilter();
+}
+function bulkOK(){
+  if(cur<0) return; var u=S.units[cur]; var list=ITEMS_BY_TYPE[u.type]||[];
+  list.forEach(function(it,idx){ u.judged[idx]="異常なし"; });
+  renderItems(u); applyPrev(u); saveDraft(); toast("全項目を「異常なし」にしました");
+}
+function copyPrev(){
+  if(cur<0) return; var u=S.units[cur];
+  if(!u.prev||!u.prev.items){ toast("前回データがありません"); return; }
+  var list=ITEMS_BY_TYPE[u.type]||[]; var n=0;
+  list.forEach(function(it,idx){ var j=u.prev.items[it[1]]; if(j&&PCLS[j]){ u.judged[idx]=j; n++; } });
+  renderItems(u); applyPrev(u); saveDraft(); toast("前回の判定を"+n+"件コピーしました");
+}
+function toggleDefectOnly(){ defectOnly=!defectOnly; var b=$("qbFlt"); if(b) b.className="qb"+(defectOnly?" on":""); applyFilter(); }
+function applyFilter(){
+  if(cur<0) return; var u=S.units[cur]; var box=$("items"); if(!box) return;
+  var kids=box.children, lastCat=null, catVis=false;
+  for(var i=0;i<kids.length;i++){ var el=kids[i];
+    if((el.className||"").indexOf("cat")>=0){
+      if(lastCat) lastCat.style.display=catVis?"":"none";
+      lastCat=el; catVis=false; el.style.display="";
+    } else {
+      var idx=el.getAttribute("data-idx"); var j=(idx!=null)?(u.judged[idx]||""):"";
+      var vis=!(defectOnly && j==="異常なし");
+      el.style.display=vis?"":"none"; if(vis) catVis=true;
+    }
+  }
+  if(lastCat) lastCat.style.display=catVis?"":"none";
+}
+function showPrev(u){
+  var el=$("prevInfo"); var qp=$("qbPrev");
+  if(!u.prev){ el.classList.add("hide"); if(qp) qp.classList.add("hide"); return; }
+  if(qp && u.prev.items && Object.keys(u.prev.items).length) qp.classList.remove("hide");
+  var n=0; for(var k in u.prev.items){ if(u.prev.items[k]==="要交換"||u.prev.items[k]==="故障・不良") n++; }
+  var h="<b>前回点検："+(u.prev.date||"—")+"</b>";
+  if(u.prev.overall) h+="　総合判定："+u.prev.overall;
+  if(u.prev.grade) h+="　評価："+u.prev.grade;
+  h+="<br>要対応だった項目：<b>"+n+"件</b>";
+  if(u.prev.defects) h+="<br><span style='color:#843C39'>"+esc(u.prev.defects)+"</span>";
+  el.innerHTML=h; el.classList.remove("hide");
+  u.prevWarn = n>0 ? (u.prev.overall==="要入替"?"bad":"warn") : null;
+}
+function applyPrev(u){
+  document.querySelectorAll("#items .item").forEach(function(d){
+    var old=d.querySelector(".prev"); if(old) old.remove();
+    d.className="item";
+    if(!u.prev) return;
+    var j=u.prev.items[d.getAttribute("data-name")]; if(!j) return;
+    var s=document.createElement("span"); s.className="prev "+(PCLS[j]||"p-x"); s.textContent="前回 "+j;
+    d.querySelector(".q").appendChild(s);
+    if(j==="要交換") d.className="item warn";
+    if(j==="故障・不良") d.className="item bad";
+  });
+}
+function renderSummary(u){
+  [["overall","overall"],["grade","grade"],["action","action"]].forEach(function(p){
+    document.querySelectorAll("#"+p[0]+" .sb").forEach(function(b){
+      var on=(u[p[1]]===b.dataset.v);
+      b.style.background=on?"#1F3864":"#fff"; b.style.color=on?"#fff":"#222"; b.style.fontWeight=on?"600":"400";
+      b.onclick=function(){
+        var was=(u[p[1]]===b.dataset.v);   // 同じ選択肢をもう一度押したら未選択に戻す
+        document.querySelectorAll("#"+p[0]+" .sb").forEach(function(x){x.style.background="#fff";x.style.color="#222";x.style.fontWeight="400";});
+        if(was){ u[p[1]]=""; }
+        else { b.style.background="#1F3864"; b.style.color="#fff"; b.style.fontWeight="600"; u[p[1]]=b.dataset.v; }
+        saveDraft();
+      };
+    });
+  });
+}
+function renderThumbs(){
+  var u=S.units[cur];
+  ["A","B"].forEach(function(k){
+    var box=$("thumbs"+k); box.innerHTML="";
+    var arr=(k==="A"?u.photosAll:u.photosBad);
+    arr.forEach(function(p,i){
+      if(typeof p==="string"){ p={data:p,note:""}; arr[i]=p; }
+      var t=document.createElement("div"); t.className="tile";
+      var im=document.createElement("img"); im.src=p.data||p.thumb||""; im.onclick=function(){ openLightbox(p.data||p.thumb||"",(k==="B"?"不良箇所":"全体")+(p.note?"："+p.note:"")+(p.id?"（保存済み）":"")); }; t.appendChild(im);
+      var x=document.createElement("button"); x.className="x"; x.textContent="×";
+      x.onclick=function(){ if(confirm(EDIT&&p.id?"この写真をこの記録から外しますか？（ドライブの写真は残ります）":"この写真を削除しますか？")){ arr.splice(i,1); renderThumbs(); saveDraft(); } };
+      t.appendChild(x);
+      if(EDIT&&p.id){ var mv=document.createElement("button"); mv.className="mv"; mv.type="button"; mv.textContent="⇄ 別の機器へ"; mv.title="この写真を別の機器の記録へ移す";
+        mv.onclick=function(){ movePhotoTo(k,i); }; t.appendChild(mv); }
+      var cap=document.createElement("input"); cap.className="cap"; cap.type="text";
+      cap.placeholder=(k==="B"?"箇所（例：ドアパッキン）":"補足（任意）");
+      cap.value=p.note||"";
+      cap.oninput=function(){ p.note=cap.value; saveDraft(); };
+      t.appendChild(cap);
+      box.appendChild(t);
+    });
+    var c=document.createElement("p"); c.className="pcount";
+    c.textContent=arr.length?arr.length+"枚":"";
+    box.appendChild(c);
+  });
+}
+function wireCam(inputId,key){
+  $(inputId).addEventListener("change",function(e){
+    var files=e.target.files; if(!files||cur<0) return;
+    Array.prototype.forEach.call(files,function(f){ downscale(f,function(dataUrl){
+      (key==="A"?S.units[cur].photosAll:S.units[cur].photosBad).push({data:dataUrl,note:""});
+      renderThumbs(); saveDraft();
+    }); });
+    e.target.value="";
+  });
+}
+wireCam("camA","A"); wireCam("camB","B");
+function downscale(file,cb){
+  var img=new Image(), rd=new FileReader();
+  rd.onload=function(){ img.onload=function(){
+    var max=1024,w=img.width,h=img.height;   // 1280→1024：送信量を減らす（PDFの写真枠には十分）
+    if(w>max||h>max){ if(w>h){h=Math.round(h*max/w);w=max;} else {w=Math.round(w*max/h);h=max;} }
+    var cv=document.createElement("canvas"); cv.width=w; cv.height=h;
+    cv.getContext("2d").drawImage(img,0,0,w,h); cb(cv.toDataURL("image/jpeg",0.7));
+  }; img.src=rd.result; };
+  rd.readAsDataURL(file);
+}
+function closeUnit(){
+  if(EDIT){ if(!confirm("修正を保存せずに戻りますか？")) return; cancelEdit(); return; }
+  claimCurrent(true); clearInterval(hbTimer);
+  if(cur>=0){
+    var u=S.units[cur];
+    u.defects=$("udefects").value; u.remarks=$("uremarks").value;
+    var any=false; for(var k in u.judged){ if(u.judged[k]){ any=true; break; } }
+    u.done = any || !!u.overall || !!u.grade;
+    saveDraft();
+  }
+  cur=-1; renderList(); show("scr-list");
+}
+
+var SAVE_PAR=4;          // 同時に送る通信の本数
+var SAVE_MAX_UNITS=4;    // 1回の通信に入れる最大台数
+var SAVE_MAX_PHOTOS=8;   // 1回の通信に入れる最大写真枚数
+function unitPayload(u){
+  var list=ITEMS_BY_TYPE[u.type]||[];
+  return { no:u.no, type:u.type, name:u.name, model:u.model, serial:u.serial,
+    items:list.map(function(it,idx){ return {no:String(idx+1),place:it[0],name:it[1],judge:u.judged[idx]||"対象外"}; }),   // 未選択＝対象外（／）
+    summary:{overall:u.overall,action:u.action,grade:u.grade}, defects:u.defects, remarks:u.remarks,
+    photos: u.photosAll.map(function(p){return {cat:"全体",data:(p.data||p),note:(p.note||"")};})
+             .concat(u.photosBad.map(function(p){return {cat:"不良箇所",data:(p.data||p),note:(p.note||"")};})) };
+}
+function saveAll(){
+  if(!S.inspector){ toast("点検者を入力してください"); return; }
+  var target=S.units.filter(function(u){return u.done && !isSaved(u);});
+  var already=S.units.filter(function(u){return u.done && isSaved(u);}).length;
+  if(!target.length){ toast(already?"点検済みの機器はすべて保存済みです":"点検済みの機器がありません"); return; }
+  if(!confirm(target.length+"台分の点検を保存します。よろしいですか？"+(already?"\n（保存済みの"+already+"台は送りません）":""))) return;
+  // 数台ずつ（写真8枚まで）に分けて「送信待ち」に入れる → 電波があればすぐ送る／なければ電波が戻ったときに自動で送る
+  var chunks=[], curC=[], curP=0;
+  target.forEach(function(u){
+    var np=(u.photosAll||[]).length+(u.photosBad||[]).length;
+    if(curC.length && (curC.length>=SAVE_MAX_UNITS || curP+np>SAVE_MAX_PHOTOS)){ chunks.push(curC); curC=[]; curP=0; }
+    curC.push(u); curP+=np;
+  });
+  if(curC.length) chunks.push(curC);
+  var batch=uuid(), t0=Date.now();
+  var puts=chunks.map(function(list, i){
+    var c={ id:uuid(), batch:batch, seq:i, site:S.site, date:S.date, inspector:S.inspector, created:Date.now(), tries:0, lastError:"",
+            keys:list.map(unitKey), names:list.map(function(u){return u.name;}),
+            units:list.map(function(u){ var pl=unitPayload(u); pl.uid=uuid(); return pl; }) };
+    list.forEach(function(u){ u.savedSig=unitSig(u); u.pending=c.id; });
+    return obPut(c);
+  });
+  saveDraft(); renderList();
+  Promise.all(puts).then(function(){ updateUnsentBar(); syncOutbox({ batch:batch, total:target.length, t0:t0 }); });
+}
+/* 送信待ちの送信。アプリ起動時・前面に戻ったとき・オンラインに戻ったとき・「今すぐ送信」で動く。同時3本まで、失敗したら止めて次の機会に */
+var SYNC={ running:false, parallel:3 };
+function syncOutbox(opt){
+  opt=opt||{};
+  if(SYNC.running){ if(opt.batch){ SYNC.watch=opt; } return; }
+  var r=srv(); if(!r) return;
+  obAll().then(function(list){
+    list=list.filter(function(c){ return !c.done; }).sort(function(a,b){ return (a.created-b.created)||(a.seq-b.seq); });
+    if(!list.length){ updateUnsentBar(); return; }
+    SYNC.running=true; SYNC.watch=opt.batch?opt:null;
+    var idx=0, active=0, stopped=false, rowsAll=[], sentUnits=0, photoN=0, dups=0, doneBatch={};
+    var btn=$("saveAllBtn");
+    var prog=function(){ if(btn&&SYNC.watch){ btn.disabled=true; btn.textContent="送信中… "+sentUnits+"/"+SYNC.watch.total+"台"; } };
+    prog();
+    function markSent(c,res){
+      var bad={}; (res.failed||[]).forEach(function(f){ bad[f.idx]=f.error||""; });
+      c.units.forEach(function(pl,i){ if(bad[i]!=null) return; sentUnits++; });
+      (res.rows||[]).forEach(function(x){ rowsAll.push(x); }); photoN+=res.photoCount||0; dups+=res.duplicates||0;
+      // 画面上の機器の「送信待ち」を解除
+      if(S.site===c.site) S.units.forEach(function(u){ if(u.pending===c.id) u.pending=null; });
+      if((res.failed||[]).length){ c.lastError=(res.failed||[]).map(function(f){ return f.name+"："+f.error; }).join(" / "); c.failedUnits=(res.failed||[]).map(function(f){ return f.name; }); }
+    }
+    function pump(){
+      while(!stopped && active<SYNC.parallel && idx<list.length){
+        (function(c){
+          active++; c.tries=(c.tries||0)+1;
+          srv().withSuccessHandler(function(res){
+            active--;
+            if(res&&res.ok){ markSent(c,res); obDel(c.id).then(function(){ pump(); }); }
+            else { c.lastError=(res&&res.error)||"保存できませんでした"; obPut(c); stopped=true; pump(); }
+          }).withFailureHandler(function(e){ active--; c.lastError=String((e&&e.message)||e||"通信エラー"); obPut(c); stopped=true; pump(); })
+           .submitSiteInspection({ site:c.site, date:c.date, inspector:c.inspector, units:c.units });
+        })(list[idx++]);
+      }
+      if(active===0) finish();
+    }
+    function finish(){
+      SYNC.running=false; saveDraft(); renderList(); updateUnsentBar();
+      var w=SYNC.watch; SYNC.watch=null;
+      if(btn){ btn.disabled=false; btn.textContent="この現場の点検を保存"; }
+      obAll().then(function(rest){
+        var remain=rest.filter(function(c){ return !c.done; }).length;
+        if(w){
+          var sec=Math.round((Date.now()-(w.t0||Date.now()))/1000);
+          if(!stopped && !remain){
+            toast(sentUnits+"台を保存しました（写真"+photoN+"枚・"+sec+"秒）"); clearDraft();
+            var r2=srv(true); if(r2) r2.withSuccessHandler(function(){}).withFailureHandler(function(){}).releaseAllClaims(S.site, S.inspector||"");
+            showDone({ site:S.site, date:S.date, rows:rowsAll, names:S.units.filter(function(u){return u.done;}).map(function(u){return u.name;}), fromList:false });
+          } else {
+            alert((sentUnits?sentUnits+"台は送信できました。\n":"")+"残り "+remain+" 件は送信待ちです（電波がないか、通信に失敗しました）。\n電波が戻ると自動で送ります。画面上部の「今すぐ送信」でも送れます。入力内容は端末に保存されています。");
+          }
+        } else if(sentUnits){
+          toast("送信待ちだった "+sentUnits+" 台を送信しました"+(remain?"（残り "+remain+" 件）":""));
+          if(!remain && S.site && !S.units.some(function(u){ return u.done && !isSaved(u); })) clearDraft();
+        } else if(opt.manual && remain){ toast("送信できませんでした（電波を確認してください）"); }
+      });
+    }
+    pump();
+  });
+}
+function updateUnsentBar(){
+  obAll().then(function(list){
+    var pend=list.filter(function(c){ return !c.done; });
+    var n=0; pend.forEach(function(c){ n+=c.units.length; });
+    var bar=$("unsentBar"); if(!bar) return;
+    if(!n){ bar.classList.add("hide"); return; }
+    var err=pend.map(function(c){ return c.lastError; }).filter(Boolean)[0];
+    $("unsentTxt").textContent="未送信 "+n+"台（"+pend.length+"件）"+(err?"　最後のエラー："+err.slice(0,40):"");
+    bar.classList.remove("hide");
+  });
+}
+window.addEventListener("online",function(){ setTimeout(function(){ syncOutbox({}); },1500); });
+document.addEventListener("visibilitychange",function(){ if(document.visibilityState==="visible") syncOutbox({}); });
+window.addEventListener("pageshow",function(){ syncOutbox({}); });
+setInterval(function(){ if(document.visibilityState==="visible") syncOutbox({}); },60000);
+function resetAll(){ clearInterval(statusTimer); clearInterval(hbTimer); STATUS={done:{},claims:{},me:"",now:""}; S={site:"",date:"",inspector:"",freq:"",units:[]}; cur=-1; editMode=false; EDIT=null; show("scr-site"); boot(); }
+function applyMaster(master){ if(master && Object.keys(master).length){ Object.keys(master).forEach(function(t){ if(master[t] && master[t].length) ITEMS_BY_TYPE[t]=master[t]; }); } }
+/* 起動：前回のキャッシュ（現場一覧・点検項目）があれば即表示し、裏で1回の通信で最新に置き換える */
+function boot(){
+  $("ver").textContent=APP_VERSION+(isGas()?"":" PWA");
+  if(!isGas()){
+    // PWA：ホーム画面のアイコンから開いているか（Safari のタブだと7日で端末内データが消える）
+    var ios=/iP(hone|ad|od)/.test(navigator.userAgent); var standalone=window.navigator.standalone===true || (window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches);
+    $("saBar").classList.toggle("hide", !(ios && !standalone));
+    var m=/[?&]enroll=([A-Za-z0-9]+)/.exec(location.search||"");
+    if(m&&!API.token){ $("enrollCode").value=m[1].toUpperCase(); show("scr-enroll"); doEnroll(); return; }
+    if(!API.token){ show("scr-enroll"); return; }
+    $("siteHeadSub").textContent="点検する現場を選んでください　登録端末："+(API.name||"");
+  }
+  var shown=false;
+  if(sites.length){ renderSites(sites); shown=true; }
+  kvGet("boot").then(function(c){
+    if(!shown && c&&c.sites&&c.sites.length){ applyMaster(c.master); sites=c.sites; renderSites(sites); shown=true; }
+    var r=srv();
+    if(!r){ $("offlineBar").classList.remove("hide"); if(!shown) renderSites([]); return; }
+    if(!shown) $("siteList").innerHTML='<div class="sec" style="color:#777;font-size:13px">読み込み中…</div>';
+    r.withSuccessHandler(function(b){
+      if(b&&b.ok){ applyMaster(b.master); sites=b.sites||[]; renderSites(sites); kvSet("boot",{master:b.master,sites:b.sites,at:Date.now()}); }
+      else if(!shown) renderSites([]);
+    }).withFailureHandler(function(){ if(!shown){ renderSites([]); toast("電波がなく、取り込み済みの現場もありません"); } }).bootstrap();
+  });
+  kvGet("prefetchAt").then(function(t){ if(t) $("prefetchInfo").textContent="前回の取り込み："+new Date(t).toLocaleString("ja-JP"); });
+  syncOutbox({});
+}
+function doEnroll(){
+  var code=($("enrollCode").value||"").trim().toUpperCase(); if(!code){ toast("登録コードを入力してください"); return; }
+  $("enrollMsg").textContent="登録中…"; busy(1);
+  apiPost({ action:'enroll', code:code, ua:navigator.userAgent }, 60000).then(function(j){
+    busy(-1); API.token=j.token; API.name=j.name||"";
+    try{ localStorage.setItem("tks_pwa_token",API.token); localStorage.setItem("tks_pwa_name",API.name); }catch(e){}
+    try{ history.replaceState(null,"",location.pathname); }catch(e){}
+    toast("登録しました："+API.name); $("iinspector").value=$("iinspector").value||API.name; show("scr-site"); boot();
+  }).catch(function(e){ busy(-1); $("enrollMsg").textContent="登録できませんでした："+((e&&e.message)||e); });
+}
+
+var draftTimer=null;
+function saveDraft(){ if(EDIT) return; clearTimeout(draftTimer); draftTimer=setTimeout(function(){ try{ kvSet("draft", JSON.parse(JSON.stringify(S))); }catch(e){} }, 300); }
+function loadDraft(cb){
+  kvGet("draft").then(function(d){
+    if(d && d.site===S.site && d.units && d.units.length){
+      var n=d.units.filter(function(u){return u.done;}).length;
+      if(confirm("この現場の入力途中の下書きがあります（点検済 "+n+"台）。復元しますか？")){ S=d; }
+    }
+  }).catch(function(){}).then(function(){ if(cb) cb(); });
+}
+function clearDraft(){ clearTimeout(draftTimer); kvDel("draft"); }
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+if(!isGas() && 'serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(function(){}); }catch(e){} }
+if(!isGas() && navigator.storage && navigator.storage.persist){ try{ navigator.storage.persist().catch(function(){}); }catch(e){} }
+boot();
+</script>
+</body>
+</html>
