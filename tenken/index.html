@@ -375,7 +375,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v42";
+var APP_VERSION="v43";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -498,9 +498,10 @@ function pickSite(site){
       if(d&&d.ok){ kvSet(siteCacheKey(site),{units:d.units,prevs:d.prevs,at:Date.now()}); applySiteData(d); }
       else if(!S.__opened){ S.units=[]; S.__opened=true; openList(); toast("機器一覧を読み込めませんでした"); }
     }).withFailureHandler(function(){ if(!S.__opened){ S.units=[]; S.__opened=true; openList(); toast("電波がありません。取り込み済みのデータがないため開けません"); } })
-     .openSiteData(site, $("idate").value||"");
+     .openSiteData(site, S.date||$("idate").value||todayStr());   // 日付を空で送ると「全期間の記録」が保存済み扱いになるので、必ず今日を送る
   });
 }
+function todayStr(){ var d=new Date(); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
 /* 電波のある所で、全現場の機器一覧・前回点検を端末に取り込む */
 function prefetchAllSites(){
   var r=srv(); if(!r){ toast("通信できません"); return; }
@@ -510,7 +511,7 @@ function prefetchAllSites(){
     if(i>=list.length){ info.textContent="取り込み完了："+okN+"/"+list.length+" 現場（"+new Date().toLocaleString("ja-JP")+"）"; toast("全現場を取り込みました"); kvSet("prefetchAt",Date.now()); return; }
     var st=list[i++]; info.textContent="取り込み中… "+i+"/"+list.length+"　"+st.site;
     srv(true).withSuccessHandler(function(d){ if(d&&d.ok){ kvSet(siteCacheKey(st.site),{units:d.units,prevs:d.prevs,at:Date.now()}); okN++; } next(); })
-             .withFailureHandler(function(){ next(); }).openSiteData(st.site, "");
+             .withFailureHandler(function(){ next(); }).openSiteData(st.site, todayStr());
   })();
 }
 /* 機器一覧・保存状況・前回点検を画面へ。初回は一覧を作って開き、2回目以降（最新データ到着時）は入力中の内容を残したまま差し替える */
@@ -535,7 +536,7 @@ function applySiteData(d){
 }
 function refreshSiteData(){ var r=srv(true); if(!r||!S.site) return;
   r.withSuccessHandler(function(d){ if(d&&d.ok){ kvSet(siteCacheKey(S.site),{units:d.units,prevs:d.prevs,at:Date.now()}); applySiteData(d); } })
-   .withFailureHandler(function(){}).openSiteData(S.site, S.date||$("idate").value||""); }
+   .withFailureHandler(function(){}).openSiteData(S.site, S.date||$("idate").value||todayStr()); }
 function blankUnit(e){
   return { row:e.row||null, no:e.no||"", type:e.type||"", name:e.name||"", model:e.model||"", serial:e.serial||"",
            judged:{}, overall:"", grade:"", action:"", defects:"", remarks:"", photosAll:[], photosBad:[], done:false, prev:null };
