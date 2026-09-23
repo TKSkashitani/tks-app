@@ -540,6 +540,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   .kpick-acts{display:flex;gap:8px;flex-wrap:wrap;}
   .kpick-acts button{flex:1;min-width:120px;}
   #ocrCfg{margin-top:8px;}
+  button,.thumb,select,input,textarea{touch-action:manipulation;}
 </style>
 </head>
 <body>
@@ -664,9 +665,12 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
   };
   /* ─────────────────────────────────────────────────────────── */
 
-  var VERSION = 'v2.3  2026-08-13 (読取り高速化・軽量モデル・製番改行)';
+  var VERSION = 'v2.5  2026-09-23 (動作を軽く：メモリ削減・プレビュー高速化)';
 
   var MM = { W:210, H:297, M:10, GAP:3.5 };
+  // 画面用に持っておく写真の最大辺(px)。以前は2400pxを常時保持しておりiPadでメモリを圧迫していた。
+  // PDF保存・作業ファイル書き出しのときは元データ(blob)から必要な大きさで作り直す。
+  var MID = 900;
   var FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif';
 
   var state = { photos:{}, groups:[], seq:0, pages:[], sel:[], history:[], imported:[] };
@@ -813,8 +817,9 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
         var fname = 'photos/' + ('000' + no).slice(-4) + '.jpg';
         rec.photos.push({ file: fname, caption: p.caption || '' });
         chain = chain.then(function(){
-          return canvasToBytes(p.canvas, 0.85).then(function(bytes){
+          return fullCanvas(p, 2400).then(function(cv){ return canvasToBytes(cv, 0.85); }).then(function(bytes){
             entries.push({ name: fname, data: bytes });
+            el.status.textContent = '作業ファイルを作っています… ' + no + ' 枚';
           });
         });
       });
@@ -865,7 +870,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
           chain = chain.then(function(){
             var blob = new Blob([bytes], { type:'image/jpeg' });
             return loadBitmap(blob).then(function(src){
-              var full = toCanvas(src, 2400), thumb = toCanvas(src, 260);
+              var full = toCanvas(src, MID), thumb = toCanvas(src, 260);
               if (src.close) src.close();
               var id = uid('p');
               state.photos[id] = {
@@ -996,7 +1001,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
         rows.forEach(function(row){
           chain = chain.then(function(){
             return loadBitmap(row.blob).then(function(src){
-              var full = toCanvas(src, 2400), thumb = toCanvas(src, 260);
+              var full = toCanvas(src, MID), thumb = toCanvas(src, 260);
               if (src.close) src.close();
               map[row.id] = {
                 id: row.id, canvas: full, w: full.width, h: full.height,
@@ -1021,7 +1026,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
           var n = Object.keys(map).length;
           var when = new Date(meta.savedAt || Date.now());
           showBanner('前回の作業を復元しました（写真 <strong>' + n + '</strong> 枚 ／ ' +
-                     when.getMonth()+1 + '月' + when.getDate() + '日 ' +
+                     (when.getMonth()+1) + '月' + when.getDate() + '日 ' +
                      when.getHours() + ':' + pad(when.getMinutes()) + '）');
           drawGroups(); schedule();
           return true;
@@ -1044,6 +1049,16 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
     state.sel = [];
     el.undo.disabled = state.history.length === 0;
     drawGroups(); schedule();
+  }
+
+  /* 元データ(blob)から指定サイズのキャンバスを作る。失敗したら画面用の canvas で代用 */
+  function fullCanvas(p, maxEdge){
+    if (!p.blob) return Promise.resolve(p.canvas);
+    return loadBitmap(p.blob).then(function(src){
+      var c = toCanvas(src, maxEdge);
+      if (src.close) src.close();
+      return c;
+    }).catch(function(){ return p.canvas; });
   }
 
   /* ---------- 写真の読み込み ---------- */
@@ -1089,7 +1104,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
     files.forEach(function(f){
       chain = chain.then(function(){
         return loadBitmap(f).then(function(src){
-          var full = toCanvas(src, 2400), thumb = toCanvas(src, 260);
+          var full = toCanvas(src, MID), thumb = toCanvas(src, 260);
           if (src.close) src.close();
           var id = uid('p'), base = f.name.replace(/\.[^.]+$/, '');
           state.photos[id] = { id:id, canvas:full, w:full.width, h:full.height,
@@ -1160,12 +1175,23 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
   }
 
   /* ---------- 選択 ---------- */
+  function setThumbSel(node, on){
+    node.classList.toggle('sel', on);
+    node.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
   function toggleSel(pid){
     var i = state.sel.indexOf(pid);
     if (i >= 0) state.sel.splice(i,1); else state.sel.push(pid);
-    drawGroups();
+    var node = el.groups.querySelector('.thumb[data-pid="' + pid + '"]');
+    if (node) { setThumbSel(node, state.sel.indexOf(pid) >= 0); updateBars(); }
+    else drawGroups();
   }
-  function clearSel(){ state.sel = []; drawGroups(); }
+  function clearSel(){
+    state.sel = [];
+    var nodes = el.groups.querySelectorAll('.thumb.sel');
+    for (var i = 0; i < nodes.length; i++) setThumbSel(nodes[i], false);
+    updateBars();
+  }
 
   function updateBars(){
     var n = state.sel.length;
@@ -1216,7 +1242,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
       var title = document.createElement('input');
       title.type = 'text'; title.value = g.title;
       title.placeholder = '例）厨房内 現況（空欄でもOK）';
-      title.addEventListener('input', function(){ g.title = title.value; schedule(); });
+      title.addEventListener('input', function(){ g.title = title.value; scheduleSlow(); });
       head.appendChild(title);
 
       head.appendChild(btn('↑','グループを上へ',function(){ snapshot(); moveGroup(g.id,-1); drawGroups(); schedule(); }));
@@ -1232,7 +1258,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
       cmt.rows = 2;
       cmt.placeholder = 'コメント（点検所見・処置内容など・空欄でもOK）';
       cmt.value = g.comment || '';
-      cmt.addEventListener('input', function(){ g.comment = cmt.value; schedule(); });
+      cmt.addEventListener('input', function(){ g.comment = cmt.value; scheduleSlow(); });
       body.appendChild(cmt);
 
       var pickRow = document.createElement('button');
@@ -1294,10 +1320,15 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
     node.type = 'button';
     node.className = 'thumb' + (state.sel.indexOf(pid) >= 0 ? ' sel' : '');
     node.setAttribute('aria-pressed', state.sel.indexOf(pid) >= 0 ? 'true' : 'false');
+    node.setAttribute('data-pid', pid);
 
-    var img = document.createElement('img');
-    img.src = p.thumb; img.alt = p.caption;
-    node.appendChild(img);
+    if (!p.thumbImg) {
+      p.thumbImg = document.createElement('img');
+      p.thumbImg.src = p.thumb;
+      p.thumbImg.decoding = 'async';
+    }
+    p.thumbImg.alt = p.caption;
+    node.appendChild(p.thumbImg);
 
     var chk = document.createElement('span');
     chk.className = 'check'; chk.textContent = '✓';
@@ -1328,7 +1359,12 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
   }
 
   /* ---------- A4レイアウト ---------- */
-  function scalePxPerMm(){ return (el.hq.checked ? 200 : 150) / 25.4; }
+  // プレビュー画像の細かさ。表示される幅(×画面の倍率)に合わせ、無駄に大きく描かない
+  function scalePxPerMm(){
+    var css = el.preview.clientWidth || 360;
+    var px = Math.min(1400, Math.max(600, css * (window.devicePixelRatio || 1)));
+    return px / MM.W;
+  }
 
   // 1グループ分の並べ方（列数を指定して、写真の大きさと必要な高さを出す）
   function layoutFor(list, cols, contentW, capH, maxCellH, tall){
@@ -1568,8 +1604,6 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
       ctx.fillStyle='#8a959b'; ctx.textAlign='center';
       ctx.font = '400 3px ' + FONT;
       ctx.fillText(pageNo + ' / ' + total, MM.W/2, MM.H - MM.M + 3);
-      ctx.textAlign='right'; ctx.font = '400 2.4px ' + FONT; ctx.fillStyle='#b3bcc1';
-      ctx.fillText('点検まとめくん ' + VERSION, MM.W - MM.M, MM.H - MM.M + 3);
     }
 
     var pages = [];
@@ -1582,9 +1616,16 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
       pages.push({ canvas:c, ctx:ctx, ops:ops, isFirst:(idx === 0) });
     });
 
-    pages.forEach(function(pg, idx){
-      paint(pg.ctx, pg.ops, pg.isFirst, idx + 1, pages.length, true);
-    });
+    var token = ++paintToken;
+    function paintOne(k){ paint(pages[k].ctx, pages[k].ops, pages[k].isFirst, k + 1, pages.length, true); }
+    if (pages.length) paintOne(0);
+    (function later(k){
+      if (k >= pages.length) return;
+      setTimeout(function(){
+        if (token !== paintToken) return;   // その後に描き直しが始まっていたら中止
+        paintOne(k); later(k + 1);
+      }, 0);
+    })(1);
 
     // PDF書き出し用：写真を抜いた透明レイヤーを作る
     pages.paintOverlay = function(ctx, pg, idx, total){
@@ -1595,8 +1636,10 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
   }
 
   /* ---------- プレビュー・保存 ---------- */
-  var timer = null;
+  var timer = null, paintToken = 0;
   function schedule(){ clearTimeout(timer); timer = setTimeout(refresh, 120); saveWork(); }
+  // 文字入力中は少し待ってから描き直す（1文字ごとの描き直しで入力が重くならないように）
+  function scheduleSlow(){ clearTimeout(timer); timer = setTimeout(refresh, 350); saveWork(); }
 
   function refresh(){
     var n = totalPhotos();
@@ -1625,36 +1668,48 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
     el.export.disabled = true;
     el.status.textContent = 'PDFを作っています…';
     setTimeout(function(){
+      var pdf, site, dpi, q, oS, tmp, tg, total, done = 0, photosTotal = 0;
       try {
         var JsPDF = window.jspdf.jsPDF;
-        var pdf = new JsPDF({ unit:'mm', format:'a4', orientation:'portrait', compress:true });
-        var site = el.docTitle.value.trim();
+        pdf = new JsPDF({ unit:'mm', format:'a4', orientation:'portrait', compress:true });
+        site = el.docTitle.value.trim();
         if (site) pdf.setProperties({ title: site });
 
-        // 写真は1枚ずつ、置く大きさに見合った解像度でそのまま埋め込む
-        var dpi = el.hq.checked ? 400 : 300;
-        var q = el.hq.checked ? 0.92 : 0.86;
-        var oS = 300 / 25.4;   // 文字レイヤーの細かさ
-        var tmp = document.createElement('canvas');
-        var tg = tmp.getContext('2d');
-
-        function photoData(p, wmm, hmm){
-          var want = Math.max(1, Math.round(Math.max(wmm, hmm) * dpi / 25.4));
-          var scale = Math.min(1, want / Math.max(p.w, p.h));
-          if (scale > 0.999) return p.canvas.toDataURL('image/jpeg', q);
-          tmp.width = Math.max(1, Math.round(p.w * scale));
-          tmp.height = Math.max(1, Math.round(p.h * scale));
-          tg.imageSmoothingQuality = 'high';
-          tg.clearRect(0, 0, tmp.width, tmp.height);
-          tg.drawImage(p.canvas, 0, 0, tmp.width, tmp.height);
-          return tmp.toDataURL('image/jpeg', q);
-        }
-
-        var total = state.pages.length;
+        // 写真は1枚ずつ、置く大きさに見合った解像度で埋め込む（元データから作るので画面用より高精細）
+        dpi = el.hq.checked ? 400 : 300;
+        q = el.hq.checked ? 0.92 : 0.86;
+        oS = 300 / 25.4;   // 文字レイヤーの細かさ
+        tmp = document.createElement('canvas');
+        tg = tmp.getContext('2d');
+        total = state.pages.length;
         pdf.setDrawColor(201, 209, 214);
         pdf.setLineWidth(0.25);
+        state.pages.forEach(function(pg){ pg.ops.forEach(function(op){ if (op.t === 'photo') photosTotal++; }); });
+      } catch (err) {
+        el.status.textContent = 'PDFを作れませんでした。ページを開き直して、もう一度お試しください。';
+        el.export.disabled = false;
+        return;
+      }
 
-        state.pages.forEach(function(pg, i){
+      function photoData(p, wmm, hmm){
+        var want = Math.max(1, Math.round(Math.max(wmm, hmm) * dpi / 25.4));
+        // 画面用(canvas)で足りるならそれを使い、足りなければ元データから作る
+        var srcP = (Math.max(p.w, p.h) >= want) ? Promise.resolve(p.canvas) : fullCanvas(p, want);
+        return srcP.then(function(src){
+          var scale = Math.min(1, want / Math.max(src.width, src.height));
+          if (scale > 0.999) return src.toDataURL('image/jpeg', q);
+          tmp.width = Math.max(1, Math.round(src.width * scale));
+          tmp.height = Math.max(1, Math.round(src.height * scale));
+          tg.imageSmoothingQuality = 'high';
+          tg.clearRect(0, 0, tmp.width, tmp.height);
+          tg.drawImage(src, 0, 0, tmp.width, tmp.height);
+          return tmp.toDataURL('image/jpeg', q);
+        });
+      }
+
+      var chain = Promise.resolve();
+      state.pages.forEach(function(pg, i){
+        chain = chain.then(function(){
           if (i) pdf.addPage();
 
           // 先に文字レイヤー（白地）を敷く
@@ -1667,27 +1722,39 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
           octx.scale(oS, oS);
           state.pages.paintOverlay(octx, pg, i, total);
           pdf.addImage(ov.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, MM.W, MM.H);
+          ov.width = ov.height = 1;   // メモリをすぐ返す
 
           // その上に写真を1枚ずつ載せる
+          var c2 = Promise.resolve();
           pg.ops.forEach(function(op){
             if (op.t !== 'photo') return;
-            var p = op.p;
-            var sc = Math.min(op.w / p.w, op.h / p.h);
-            var dw = p.w * sc, dh = p.h * sc;
-            var dx = op.x + (op.w - dw) / 2, dy = op.y + (op.h - dh) / 2;
-            pdf.addImage(photoData(p, dw, dh), 'JPEG', dx, dy, dw, dh, undefined, 'SLOW');
-            pdf.rect(dx, dy, dw, dh);
+            c2 = c2.then(function(){
+              var p = op.p;
+              var sc = Math.min(op.w / p.w, op.h / p.h);
+              var dw = p.w * sc, dh = p.h * sc;
+              var dx = op.x + (op.w - dw) / 2, dy = op.y + (op.h - dh) / 2;
+              return photoData(p, dw, dh).then(function(data){
+                pdf.addImage(data, 'JPEG', dx, dy, dw, dh, undefined, 'SLOW');
+                pdf.rect(dx, dy, dw, dh);
+                done++;
+                el.status.textContent = 'PDFを作っています… ' + done + ' / ' + photosTotal + ' 枚';
+              });
+            });
           });
+          return c2;
         });
+      });
+      chain.then(function(){
         var d = new Date();
         var name = (site.replace(/[\\\/:*?"<>|]/g, '') || '写真まとめ') + '_' +
                    d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '.pdf';
         pdf.save(name);
         el.status.textContent = '保存しました：' + name;
-      } catch (err) {
+        el.export.disabled = false;
+      }).catch(function(){
         el.status.textContent = 'PDFを作れませんでした。ページを開き直して、もう一度お試しください。';
-      }
-      el.export.disabled = false;
+        el.export.disabled = false;
+      });
     }, 30);
   }
 
@@ -2001,7 +2068,7 @@ window.KYOSHIKI_DATA={"makers":["フジマック","マルゼン","タニコー",
 
   el.addGroup.addEventListener('click', function(){ snapshot(); addGroup(true); drawGroups(); schedule(); focusFirstGroup(); });
   el.undo.addEventListener('click', undo);
-  el.docTitle.addEventListener('input', schedule);
+  el.docTitle.addEventListener('input', scheduleSlow);
   el.size.addEventListener('change', schedule);
   el.showDate.addEventListener('change', schedule);
   el.hq.addEventListener('change', schedule);
