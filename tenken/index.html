@@ -346,7 +346,7 @@
   </div>
 </div>
 
-<div id="busy" class="hide"></div><div id="busyTxt" class="hide">通信中…</div><div id="ver"></div>
+<div id="busy" class="hide"></div><div id="busyTxt" class="hide">通信中…</div><div id="ver" onclick="showErrLog()" title="通信ログ"></div>
 <div id="pick" class="hide" onclick="if(event.target===this)this.classList.add('hide')"><div class="pbox"><h3 id="pickTitle"></h3><p id="pickSub" style="margin:0 0 8px;font-size:12px;color:#666"></p><div id="pickList"></div><button type="button" class="btn" style="margin-top:8px" onclick="$('pick').classList.add('hide')">閉じる</button></div></div>
 <div id="lightbox" class="hide" onclick="this.classList.add('hide')"><button class="lbx" type="button">×</button><img id="lbImg" alt=""><div class="lbcap" id="lbCap"></div></div>
 
@@ -381,26 +381,53 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v48";
+var APP_VERSION="v49";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
 function uuid(){ try{ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID(); }catch(e){} return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){ var r=Math.random()*16|0; return (c==='x'?r:(r&3|8)).toString(16); }); }
-function apiPost(body, timeoutMs){
+/* 通信ログ（直近30件・端末内）：左下のバージョン表示をタップすると見られる */
+var ERRLOG=[]; try{ ERRLOG=JSON.parse(localStorage.getItem("tks_pwa_errlog")||"[]")||[]; }catch(e){}
+function logErr(fn,e,extra){ try{ var d=new Date(); ERRLOG.push({t:d.toLocaleString("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"}),fn:fn||"",m:String((e&&e.message)||e||"").slice(0,120),x:extra||""}); while(ERRLOG.length>30) ERRLOG.shift(); localStorage.setItem("tks_pwa_errlog",JSON.stringify(ERRLOG)); }catch(e2){} }
+function showErrLog(){ var on=(navigator.onLine===false)?"オフライン":"オンライン"; alert("アプリ "+APP_VERSION+"（"+on+"）\n通信ログ（新しい順・最大30件）\n\n"+(ERRLOG.length?ERRLOG.slice().reverse().map(function(r){ return r.t+" "+r.fn+(r.x?" ["+r.x+"]":"")+"\n  "+r.m; }).join("\n"):"エラーはありません")); }
+/* 一時的な通信失敗（電波・接続切れ・タイムアウト・応答がHTML）は自動で再試行する。サーバーが返した業務エラー（e.server）は再試行しない */
+function isRetryable_(e){ return !!(e && !e.server && (e.net||e.timeout||e.badResp)); }
+function friendlyErr_(e){
+  if(!e) return "通信エラー";
+  if(e.server) return String(e.message||e);
+  if(e.timeout) return "通信に時間がかかりすぎました。電波の良い場所でもう一度お試しください";
+  if(e.net) return "電波が弱く通信できませんでした（自動で再試行しましたが届きませんでした）";
+  if(e.badResp) return "サーバーの応答が乱れました。少し待ってからもう一度お試しください";
+  return String(e.message||e);
+}
+function apiOnce_(body, timeoutMs){
   var ctl=('AbortController' in window)?new AbortController():null;
   var timer=setTimeout(function(){ if(ctl) ctl.abort(); }, timeoutMs||90000);
-  return fetch(API.url,{ method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body), redirect:'follow', signal:ctl?ctl.signal:undefined })
-    .then(function(r){ return r.text(); })
-    .then(function(txt){ clearTimeout(timer); var j=null; try{ j=JSON.parse(txt); }catch(e){}
+  return fetch(API.url,{ method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body), redirect:'follow', cache:'no-store', signal:ctl?ctl.signal:undefined })
+    .then(function(r){ return r.text().then(function(t){ return {status:r.status, txt:t}; }); }, function(e){ var ne=new Error(String((e&&e.message)||e||"network")); ne.net=true; throw ne; })
+    .then(function(rr){ clearTimeout(timer); var txt=rr.txt; var j=null; try{ j=JSON.parse(txt); }catch(e){}
       if(!j){ var m=/\{[\s\S]*\}/.exec(txt||""); if(m){ try{ j=JSON.parse(m[0]); }catch(e2){} } }   // JSON が HTML などに包まれて返った場合の救済
-      if(!j) throw new Error("受信口の応答が読めません："+String(txt||"(空)").replace(/\s+/g," ").slice(0,160));
-      if(!j.ok){ var err=new Error(j.error||"error"); err.code=j.code; throw err; } return j; })
-    .catch(function(e){ clearTimeout(timer); if(e&&e.name==='AbortError') throw new Error("通信がタイムアウトしました"); throw e; });
+      if(!j){ var be=new Error("受信口の応答が読めません（HTTP "+rr.status+"）："+String(txt||"(空)").replace(/\s+/g," ").slice(0,160)); be.badResp=true; throw be; }
+      if(!j.ok){ var err=new Error(j.error||"error"); err.code=j.code; err.server=true; throw err; } return j; })
+    .catch(function(e){ clearTimeout(timer); if(e&&e.name==='AbortError'){ var te=new Error("通信がタイムアウトしました"); te.timeout=true; throw te; } throw e; });
+}
+function apiPost(body, timeoutMs, tries){
+  if(tries==null) tries=3;
+  var fn=(body&&(body.fn||body.action))||"";
+  return apiOnce_(body, timeoutMs).catch(function(e){
+    if(isRetryable_(e) && tries>1){
+      logErr(fn,e,"再試行"+(4-tries));
+      var wait=(4-tries)*1500;   // 1.5秒 → 3秒
+      return new Promise(function(res){ setTimeout(res,wait); }).then(function(){ return apiPost(body, timeoutMs, tries-1); });
+    }
+    logErr(fn,e,e.server?"サーバー":"失敗");
+    throw e;
+  });
 }
 function waitJob(id){
   return new Promise(function(res,rej){ var n=0;
     (function tick(){
-      apiPost({ action:'rpc', fn:'getPwaJob', args:[id], token:API.token }, 30000).then(function(j){
+      apiPost({ action:'rpc', fn:'getPwaJob', args:[id], token:API.token }, 30000, 1).then(function(j){
         var st=j.result||{};
         if(st.state==='done') res(st.result);
         else if(st.state==='error') rej(new Error(st.error||'処理に失敗しました'));
@@ -424,7 +451,7 @@ function apiProxy(quiet){
       apiPost({ action:'rpc', fn:name, args:args, token:API.token }, slow?300000:90000)
         .then(function(j){ var r=j.result; return (r&&r.__job) ? waitJob(r.__job) : r; })   // PDF作成などは裏で実行 → 結果を取りに行く
         .then(function(result){ if(!quiet) busy(-1); if(ok) ok(result, uo); })
-        .catch(function(e){ if(!quiet) busy(-1); if(e&&e.code===401) onAuthLost(); if(fail) fail(e, uo); else if(!quiet) toast("通信エラー："+((e&&e.message)||e)); });
+        .catch(function(e){ if(!quiet) busy(-1); if(e&&e.code===401) onAuthLost(); if(e&&!e.server&&!e.message2){ try{ e.message2=true; e.message=friendlyErr_(e); }catch(e3){} } if(fail) fail(e, uo); else if(!quiet) toast("通信エラー："+((e&&e.message)||e)); });
     };
   }});
   return px;
@@ -443,7 +470,7 @@ function srv(quiet){
     return function(){
       busy(1);
       var r=run.withSuccessHandler(function(res,obj){ busy(-1); if(ok) ok(res,obj); })
-               .withFailureHandler(function(err,obj){ busy(-1); if(fail) fail(err,obj); else toast("通信エラー："+((err&&err.message)||err)); });
+               .withFailureHandler(function(err,obj){ busy(-1); logErr(name,err,"GAS"); if(fail) fail(err,obj); else toast("通信エラー："+((err&&err.message)||err)); });
       if(uo!=null) r=r.withUserObject(uo);
       return r[name].apply(r,arguments);
     };
