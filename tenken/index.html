@@ -22,6 +22,7 @@
   header h1{ margin:0; font-size:16px; font-weight:600; }
   header p{ margin:3px 0 0; font-size:11px; color:#BDD7EE; }
   .back{ background:none; border:none; color:#BDD7EE; font-size:13px; padding:0; margin-bottom:4px; font-family:inherit; }
+  .hedit{ float:right; margin:2px 0 0 8px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.5); color:#fff; border-radius:9px; font-size:12px; padding:6px 10px; font-family:inherit; }
   .sec{ background:#fff; margin:10px; border-radius:14px; padding:12px 14px; border:1px solid #eee; }
   label.f{ display:block; font-size:12px; color:#555; margin:8px 0 4px; }
   input,textarea,select{ width:100%; border:1px solid var(--line); border-radius:9px;
@@ -200,6 +201,7 @@
 <div id="scr-unit" class="hide">
   <header>
     <button class="back" onclick="closeUnit()">‹ 機器一覧へ</button>
+    <button type="button" class="hedit" id="unitInfoBtn" onclick="editUnitInfo()">✎ 機器情報を修正</button>
     <h1 id="unitTitle">機器</h1>
     <p id="unitSub"></p>
     <div class="qbar">
@@ -265,7 +267,7 @@
 <!-- ================= ④ 機器の追加・編集 ================= -->
 <div id="scr-edit" class="hide">
   <header>
-    <button class="back" onclick="show('scr-list')">‹ 機器一覧へ</button>
+    <button class="back" id="editBack" onclick="editorBack()">‹ 機器一覧へ</button>
     <h1 id="editTitle">機器を追加</h1>
     <p>機器種別を選び、名称を入力してください</p>
   </header>
@@ -379,7 +381,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v46";
+var APP_VERSION="v47";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -745,12 +747,22 @@ function addUnit(){ openEditor(-1); }
 function editUnit(i){ openEditor(i); }
 function delUnit(i){ openEditor(i); }
 
-var editIdx=-1, etype="";
-function openEditor(i){
-  editIdx=i;
+var editIdx=-1, etype="", editorFrom="list";
+function editorBack(){ if(editorFrom==="unit"){ show("scr-unit"); } else { show("scr-list"); } }
+function setUnitHeader(u,i){
+  $("unitTitle").textContent=(EDIT?"修正：":"")+(i+1)+"号機　"+(u.name||"");
+  $("unitSub").textContent=u.type+(u.model?" ／ "+u.model:"")+(u.serial?" ／ "+u.serial:"");
+}
+/* 点検画面・修正画面の見出し（機器名・種別・型式・シリアル）をその場で直す */
+function editUnitInfo(){ if(cur<0||!S.units[cur]) return; openEditor(cur,"unit"); }
+function openEditor(i,from){
+  editIdx=i; editorFrom=from||"list";
   var u=(i>=0)?S.units[i]:{type:"",name:"",model:"",serial:""};
   etype=u.type||"";
-  $("editTitle").textContent=(i>=0)?"機器を編集":"機器を追加";
+  $("editTitle").textContent=(i>=0)?(editorFrom==="unit"?"機器情報を修正":"機器を編集"):"機器を追加";
+  $("editBack").textContent=(editorFrom==="unit")?"‹ 点検画面へ戻る":"‹ 機器一覧へ";
+  var ep=document.querySelector("#scr-edit header p");
+  if(ep) ep.textContent=(editorFrom==="unit")?(EDIT?"直した内容は「修正を保存（上書き）」で記録と機器台帳に反映されます":"直した内容は機器台帳にも反映されます"):"機器種別を選び、名称を入力してください";
   $("ename").value=u.name||""; $("emodel").value=u.model||""; $("eserial").value=u.serial||"";
   document.querySelectorAll("#etype .tb").forEach(function(b){
     b.className="tb"+(b.dataset.t===etype?" on":"");
@@ -760,7 +772,7 @@ function openEditor(i){
       b.className="tb on";
     };
   });
-  $("edelWrap").style.display=(i>=0)?"block":"none";
+  $("edelWrap").style.display=(i>=0&&editorFrom!=="unit")?"block":"none";
   show("scr-edit");
 }
 function saveEditor(){
@@ -768,6 +780,20 @@ function saveEditor(){
   var name=$("ename").value.trim();
   if(!name){ toast("機器名を入力してください"); return; }
   var d={type:etype,name:name,model:$("emodel").value.trim(),serial:$("eserial").value.trim()};
+  if(editorFrom==="unit" && editIdx>=0){
+    var uu=S.units[editIdx], oldType=uu.type;
+    if(oldType!==d.type){   // 種別が変わったら点検項目を入れ替え（同じ名前の項目の○△◎×は引き継ぐ）
+      var oldList=ITEMS_BY_TYPE[oldType]||[], byName={};
+      Object.keys(uu.judged||{}).forEach(function(k){ var it=oldList[Number(k)]; if(it) byName[it[1]]=uu.judged[k]; });
+      var nj={}; (ITEMS_BY_TYPE[d.type]||[]).forEach(function(it,idx){ if(byName[it[1]]) nj[idx]=byName[it[1]]; });
+      uu.judged=nj; uu.prev=null;
+    }
+    uu.type=d.type; uu.name=d.name; uu.model=d.model; uu.serial=d.serial;
+    if(EDIT){ EDIT.header=d; toast("見出しを直しました。「修正を保存（上書き）」で記録と台帳に反映します"); }
+    else { syncEquip(); saveDraft(); toast("機器情報を直しました"); }
+    setUnitHeader(uu,editIdx); if(oldType!==d.type){ renderItems(uu); }
+    show("scr-unit"); return;
+  }
   if(editIdx>=0){ var u=S.units[editIdx]; u.type=d.type; u.name=d.name; u.model=d.model; u.serial=d.serial; }
   else { S.units.push(blankUnit(d)); }
   syncEquip(); renderList(); show("scr-list"); toast("保存しました");
@@ -866,7 +892,7 @@ function saveEdit(){
   if(!EDIT||cur<0) return; var u=S.units[cur]; var e=EDIT;
   u.defects=$("udefects").value; u.remarks=$("uremarks").value;
   var list=ITEMS_BY_TYPE[u.type]||[];
-  var payload={ row:e.row, site:S.site, editor:S.inspector||"", section:S.section||"",
+  var payload={ row:e.row, site:S.site, editor:S.inspector||"", section:S.section||"", header:e.header||null,
     items:list.map(function(it,idx){ return {no:String(idx+1),place:it[0],name:it[1],judge:u.judged[idx]||"対象外"}; }),   // 未選択＝対象外（／）
     summary:{overall:u.overall,action:u.action,grade:u.grade}, defects:u.defects, remarks:u.remarks,
     keepPhotoIds:u.photosAll.concat(u.photosBad).filter(function(p){return p.id;}).map(function(p){return p.id;}),
@@ -880,7 +906,10 @@ function saveEdit(){
     btn.disabled=false; btn.textContent="修正を保存（上書き）";
     if(!res||!res.ok){ alert("修正を保存できませんでした"+(res&&res.error?"：\n"+res.error:"")); return; }
     toast("修正を保存しました（写真"+res.photoCount+"枚）");
-    var from=e.from; exitEditMode();
+    var from=e.from; var hdr=e.header;
+    if(hdr){ e.backup.type=hdr.type; e.backup.name=hdr.name; e.backup.model=hdr.model; e.backup.serial=hdr.serial; }
+    exitEditMode();
+    if(hdr){ syncEquip(); }   // 機器台帳にも反映
     if(from==="done"&&LAST){ showDone(LAST); } else { renderList(); show("scr-list"); refreshSiteData(); }
   }).withFailureHandler(function(){ btn.disabled=false; btn.textContent="修正を保存（上書き）"; alert("通信エラーで保存できませんでした。もう一度お試しください"); })
    .updateInspection(payload);
