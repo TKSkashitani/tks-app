@@ -286,8 +286,11 @@
       <input type="text" id="ename" placeholder="例）食器洗浄機">
       <label class="f">型式</label>
       <input type="text" id="emodel" placeholder="例）FMD-50WB">
-      <label class="f">シリアルNo.</label>
+      <label class="f">シリアルNo.（製造番号）</label>
       <input type="text" id="eserial" placeholder="例）SN-123456">
+      <button type="button" class="btn" id="ocrBtn" onclick="$('ocrCam').click()" style="margin-top:6px">📷 銘板を撮って製番を読み取る</button>
+      <input type="file" id="ocrCam" accept="image/*" capture="environment" class="hide">
+      <div id="ocrBox" class="hide" style="margin-top:6px;font-size:12px;color:#555"></div>
     </div>
     <div class="sec" id="edelWrap">
       <button class="btn del" onclick="deleteEditor()">この機器を削除</button>
@@ -383,7 +386,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v50";
+var APP_VERSION="v51";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -819,6 +822,7 @@ function openEditor(i,from){
   var ep=document.querySelector("#scr-edit header p");
   if(ep) ep.textContent=(editorFrom==="unit")?(EDIT?"直した内容は「修正を保存（上書き）」で記録と機器台帳に反映されます":"直した内容は機器台帳にも反映されます"):"機器種別を選び、名称を入力してください";
   $("ename").value=u.name||""; $("emodel").value=u.model||""; $("eserial").value=u.serial||"";
+  var ob=$("ocrBox"); if(ob){ ob.classList.add("hide"); ob.innerHTML=""; }
   document.querySelectorAll("#etype .tb").forEach(function(b){
     b.className="tb"+(b.dataset.t===etype?" on":"");
     b.onclick=function(){
@@ -1129,6 +1133,31 @@ function wireCam(inputId,key){
   });
 }
 wireCam("camA","A"); wireCam("camB","B");
+/* 銘板の写真から製番を読み取る（サーバーの文字認識。電波が必要） */
+function downscaleTo(file,max,q,cb){
+  var img=new Image(), rd=new FileReader();
+  rd.onload=function(){ img.onload=function(){ var w=img.width,h=img.height;
+    if(w>max||h>max){ if(w>h){h=Math.round(h*max/w);w=max;} else {w=Math.round(w*max/h);h=max;} }
+    var cv=document.createElement("canvas"); cv.width=w; cv.height=h; cv.getContext("2d").drawImage(img,0,0,w,h); cb(cv.toDataURL("image/jpeg",q)); };
+    img.src=rd.result; };
+  rd.readAsDataURL(file);
+}
+(function(){ var el=document.getElementById("ocrCam"); if(!el) return; el.addEventListener("change",function(e){
+  var f=e.target.files&&e.target.files[0]; e.target.value=""; if(!f) return;
+  var box=$("ocrBox"); box.classList.remove("hide");
+  if(navigator.onLine===false){ box.innerHTML='電波がないため読み取れません。iPhoneなら、上の製番の入力欄を長押し→「テキストをスキャン」で銘板を映すと、電波なしでも文字を入れられます。'; return; }
+  var r=srv(); if(!r){ box.textContent="この画面では使えません"; return; }
+  box.textContent="読み取り中…（10秒ほど）";
+  downscaleTo(f,2000,0.9,function(data){
+    r.withSuccessHandler(function(res){
+      if(!res||!res.ok){ box.textContent="読み取れませんでした"+(res&&res.error?"："+res.error:""); return; }
+      var c=res.candidates||[];
+      if(!c.length){ box.innerHTML='製番らしい文字が見つかりませんでした。銘板に近づいて、文字がはっきり写るように撮り直してください。<br><span style="color:#999">読めた文字：'+esc(res.text||"（なし）")+'</span>'; return; }
+      box.innerHTML='候補をタップすると製番欄に入ります：<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">'+c.map(function(x,i){ return '<button type="button" class="tb'+(i===0?' on':'')+'" data-v="'+esc(x.v)+'" style="flex:0 0 auto;padding:6px 10px">'+esc(x.v)+'</button>'; }).join('')+'</div>';
+      Array.prototype.forEach.call(box.querySelectorAll("button[data-v]"),function(b){ b.onclick=function(){ $("eserial").value=b.getAttribute("data-v"); toast("製番に入れました。内容を確かめて「保存する」を押してください"); }; });
+    }).withFailureHandler(function(err){ box.textContent="通信エラーで読み取れませんでした："+((err&&err.message)||err); }).ocrSerial({ data:data, model:$("emodel").value });
+  });
+}); })();
 function downscale(file,cb){
   var img=new Image(), rd=new FileReader();
   rd.onload=function(){ img.onload=function(){
