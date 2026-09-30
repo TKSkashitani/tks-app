@@ -386,7 +386,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v51";
+var APP_VERSION="v52";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -568,7 +568,7 @@ function applySiteData(d){
   var byKey={}; S.units.forEach(function(u){ byKey[unitKey(u)]=u; });
   var next=[];
   listed.forEach(function(e){ var b=blankUnit(e), k=unitKey(b), u=byKey[k];
-    if(u){ u.row=e.row||u.row; if(e.type) u.type=e.type; next.push(u); delete byKey[k]; } else next.push(b); });
+    if(u){ u.row=e.row||u.row; if(e.no&&!u.no) u.no=e.no; u.srvName=e.name||""; if(e.type) u.type=e.type; next.push(u); delete byKey[k]; } else next.push(b); });
   Object.keys(byKey).forEach(function(k){ var u=byKey[k]; if(u.done||Object.keys(u.judged||{}).length) next.push(u); });   // 台帳から消えても入力中なら残す
   S.units=next;
   if(d.prevs) S.prevs=d.prevs;
@@ -579,7 +579,7 @@ function refreshSiteData(){ var r=srv(true); if(!r||!S.site) return;
   r.withSuccessHandler(function(d){ if(d&&d.ok){ kvSet(siteCacheKey(S.site),{units:d.units,prevs:d.prevs,at:Date.now()}); applySiteData(d); } })
    .withFailureHandler(function(){}).openSiteData(S.site, S.date||$("idate").value||todayStr()); }
 function blankUnit(e){
-  return { row:e.row||null, no:e.no||"", type:e.type||"", name:e.name||"", model:e.model||"", serial:e.serial||"",
+  return { row:e.row||null, no:e.no||"", srvName:(e.row?(e.name||""):null), type:e.type||"", name:e.name||"", model:e.model||"", serial:e.serial||"",
            judged:{}, overall:"", grade:"", action:"", defects:"", remarks:"", photosAll:[], photosBad:[], done:false, prev:null };
 }
 
@@ -860,8 +860,14 @@ function deleteEditor(){
 function syncEquip(){
   saveDraft();
   var r=srv(); if(!r) return;
-  var list=S.units.map(function(u){ return {row:u.row,type:u.type,name:u.name,model:u.model,serial:u.serial}; });
-  r.withSuccessHandler(function(res){ if(res&&res.ok) toast("機器構成を台帳に反映しました"); }).saveEquipment(S.site,list,S.freq);
+  var units=S.units.slice();
+  var list=units.map(function(u){ return {row:u.row,no:u.no||"",type:u.type,name:u.name,model:u.model,serial:u.serial,srvName:(u.srvName!=null?u.srvName:u.name)}; });
+  r.withSuccessHandler(function(res){
+    if(!res||!res.ok){ toast("台帳への反映に失敗しました"+(res&&res.error?"："+res.error:"")); return; }
+    (res.rows||[]).forEach(function(x){ var u=units[x.idx]; if(u){ u.row=x.row; if(x.no&&!u.no) u.no=x.no; u.srvName=u.name; } });   // 台帳の今の行番号に合わせ直す
+    toast(res.warn ? res.warn : "機器構成を台帳に反映しました");
+    refreshSiteData();
+  }).saveEquipment(S.site,list,S.freq);
 }
 
 /* ---------- 保存済みの記録をアプリで修正（上書き） ---------- */
