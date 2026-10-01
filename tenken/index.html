@@ -317,6 +317,8 @@
       <p style="margin:0 0 8px;font-size:12px;color:#666" id="doneCnt"></p>
       <label class="f" style="margin-top:0">セクション名（フジマック様式に印字・任意）</label>
       <input type="text" id="doneSection" placeholder="空欄なら記録のセクション名。それも無ければ用紙は空欄" style="margin-bottom:8px">
+      <label class="f">点検者名（点検用紙に載る名前。書き直せます）</label>
+      <input type="text" id="doneInspector" placeholder="空欄なら記録の点検者名" style="margin-bottom:8px">
       <details id="doneUnitsWrap" style="margin:0 0 10px">
         <summary style="font-size:13px;color:#1F3864;font-weight:600;cursor:pointer">この日の保存済み記録を見る・修正する <span id="doneUnitsCnt" style="font-weight:400;color:#666"></span></summary>
         <div id="doneUnits" style="margin-top:6px"></div>
@@ -386,7 +388,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v52";
+var APP_VERSION="v53";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -643,6 +645,9 @@ function loadOutput(date){
     sel.innerHTML=DONE_DATES.map(function(d){ return '<option value="'+d.date+'">'+d.label+'　'+d.count+'台'+(d.inspectors?'　'+esc(d.inspectors):'')+(d.pdf?'　📄PDF作成済':'')+'</option>'; }).join('');
     sel.value=res.date; LAST.date=res.date; LAST.dateInfo=res.dateInfo||null; LAST.rows=null;
     updateDoneHead(); renderPhotos(res.photos); renderDoneUnits(res.units);
+    // 点検者名：その日の記録の点検者を入れておく（PDFを作る前に書き直せる）
+    var names=[]; (res.units||[]).forEach(function(x){ var n=String(x.inspector||"").trim(); if(n&&names.indexOf(n)<0) names.push(n); });
+    $("doneInspector").value=names.join("・");
   }).withFailureHandler(function(){ sel.innerHTML='<option value="">点検日を読み込めませんでした</option>'; updateDoneHead(); }).getOutputData(LAST.site, date||"");
 }
 function changeDoneDate(){
@@ -670,7 +675,7 @@ function makePdf(fmt){
         +'<br><span style="color:#666;font-size:11px">ドライブ「点検報告書PDF」にも保存済み</span></div>';
     } else box.innerHTML='<div class="info" style="color:#843C39">作成できませんでした：'+esc((res&&res.error)||'')+'</div>';
   }).withFailureHandler(function(e){ bs.forEach(function(b){ b.disabled=false; }); box.innerHTML='<div class="info" style="color:#843C39">通信エラー：'+esc((e&&e.message)||e)+'</div>'; })
-   .makeInspectionPdf({ site:LAST.site, date:LAST.date, format:fmt, section:($("doneSection").value||"").trim(), rows: LAST.rows ? LAST.rows.map(function(x){ return x.row; }).filter(function(x){ return x; }) : null });
+   .makeInspectionPdf({ site:LAST.site, date:LAST.date, format:fmt, section:($("doneSection").value||"").trim(), inspector:($("doneInspector").value||"").trim(), rows: LAST.rows ? LAST.rows.map(function(x){ return x.row; }).filter(function(x){ return x; }) : null });
 }
 var RPT={fmt:null,zoom:false}; var INS_PHOTOS=[];
 function reqRows(){ return LAST&&LAST.rows ? LAST.rows.map(function(x){return x.row;}).filter(function(x){return x;}) : null; }
@@ -690,7 +695,7 @@ function previewReport(fmt){
     setTimeout(fitPreview,400); setTimeout(fitPreview,2000);
     wrap.scrollIntoView({behavior:"smooth",block:"start"});
   }).withFailureHandler(function(e){ info.textContent="通信エラー："+((e&&e.message)||e); })
-   .getReportHtml({ site:LAST.site, date:LAST.date, format:fmt, section:($("doneSection").value||"").trim(), rows:reqRows() });
+   .getReportHtml({ site:LAST.site, date:LAST.date, format:fmt, section:($("doneSection").value||"").trim(), inspector:($("doneInspector").value||"").trim(), rows:reqRows() });
 }
 function fitPreview(){
   var box=$("rptScale"), inner=$("rptInner"); var page=inner.querySelector(".page"); if(!page) return;
