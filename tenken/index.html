@@ -180,7 +180,7 @@
     <div id="unsentBar" class="hide"><span id="unsentTxt"></span><button type="button" onclick="syncOutbox({manual:true})">今すぐ送信</button></div>
     <div class="sec">
       <div class="grid2">
-        <div><label class="f">点検日</label><input type="date" id="idate"></div>
+        <div><label class="f">点検日</label><select id="idateSel"></select><input type="date" id="idate" class="hide" style="margin-top:6px"></div>
         <div><label class="f">点検者</label><input type="text" id="iinspector" placeholder="氏名"></div>
       </div>
       <label class="f">セクション名（フジマック様式の用紙に印字・任意）</label>
@@ -396,7 +396,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v55";
+var APP_VERSION="v56";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -546,7 +546,7 @@ function pickSite(site){
     if(!r){ if(!S.__opened){ S.units=[]; S.__opened=true; openList(); } return; }
     if(!S.__opened) toast("機器一覧を読み込み中…");
     r.withSuccessHandler(function(d){
-      if(d&&d.ok){ kvSet(siteCacheKey(site),{units:d.units,prevs:d.prevs,at:Date.now()}); applySiteData(d); }
+      if(d&&d.ok){ kvSet(siteCacheKey(site),{units:d.units,prevs:d.prevs,dates:d.dates||[],at:Date.now()}); applySiteData(d); }
       else if(!S.__opened){ S.units=[]; S.__opened=true; openList(); toast("機器一覧を読み込めませんでした"); }
     }).withFailureHandler(function(){ if(!S.__opened){ S.units=[]; S.__opened=true; openList(); toast("電波がありません。取り込み済みのデータがないため開けません"); } })
      .openSiteData(site, S.date||$("idate").value||todayStr());   // 日付を空で送ると「全期間の記録」が保存済み扱いになるので、必ず今日を送る
@@ -571,7 +571,7 @@ function applySiteData(d){
   if(!S.__opened){
     S.units=listed.map(function(e){ return blankUnit(e); });
     var f=listed.map(function(e){return e.freq;}).filter(function(x){return x;})[0]; S.freq=f||S.freq||2;
-    var pv=d.prevs||{}; var st=(d.status&&d.status.ok)?d.status:null; S.__opened=true;
+    var pv=d.prevs||{}; var st=(d.status&&d.status.ok)?d.status:null; S.__opened=true; if(d.dates) S.dates=d.dates;
     loadDraft(function(){ S.prevs=pv; S.__opened=true; if(st) STATUS=st; openList(); });
     return;
   }
@@ -582,11 +582,12 @@ function applySiteData(d){
   Object.keys(byKey).forEach(function(k){ var u=byKey[k]; if(u.done||Object.keys(u.judged||{}).length) next.push(u); });   // 台帳から消えても入力中なら残す
   S.units=next;
   if(d.prevs) S.prevs=d.prevs;
+  if(d.dates){ S.dates=d.dates; buildDateOptions(); }
   if(d.status&&d.status.ok) STATUS=d.status;
   if(!$("scr-list").classList.contains("hide")) renderList();
 }
 function refreshSiteData(){ var r=srv(true); if(!r||!S.site) return;
-  r.withSuccessHandler(function(d){ if(d&&d.ok){ kvSet(siteCacheKey(S.site),{units:d.units,prevs:d.prevs,at:Date.now()}); applySiteData(d); } })
+  r.withSuccessHandler(function(d){ if(d&&d.ok){ kvSet(siteCacheKey(S.site),{units:d.units,prevs:d.prevs,dates:d.dates||[],at:Date.now()}); applySiteData(d); } })
    .withFailureHandler(function(){}).openSiteData(S.site, S.date||$("idate").value||todayStr()); }
 function blankUnit(e){
   return { row:e.row||null, no:e.no||"", srvName:(e.row?(e.name||""):null), type:e.type||"", name:e.name||"", model:e.model||"", serial:e.serial||"",
@@ -823,13 +824,14 @@ function loadPhotoPdfs(){
 }
 function openList(){
   $("listTitle").textContent=S.site;
-  if(!$("idate").value) $("idate").valueAsDate=new Date();
-  $("idate").onchange=function(){
-    // 点検日を変えたら、その日の保存済み記録をすぐ読み直す（45秒ごとの自動更新を待たない）
-    S.date=$("idate").value; saveDraft(); renderList();
-    loadStatus(function(res){ var n=Object.keys((res&&res.ok&&res.done)||{}).length;
-      toast(String(S.date).replace(/-/g,"/")+" の保存済み記録："+n+"台"+(n?"　「✎ 修正」で直せます":"")); });
+  if(!$("idate").value) $("idate").value=S.date||todayStr();
+  buildDateOptions();
+  $("idateSel").onchange=function(){
+    var v=$("idateSel").value;
+    if(v==="__other"){ $("idate").classList.remove("hide"); try{ $("idate").showPicker(); }catch(e){} return; }
+    $("idate").classList.add("hide"); $("idate").value=v; onDateChanged();
   };
+  $("idate").onchange=function(){ if(!$("idate").value) return; onDateChanged(); buildDateOptions(); };
   $("iinspector").oninput=function(){ S.inspector=$("iinspector").value; saveDraft(); };
   $("isection").value=S.section||""; $("isection").oninput=function(){ S.section=$("isection").value; saveDraft(); };
   if(!S.inspector && API.name) S.inspector=API.name;
@@ -838,6 +840,24 @@ function openList(){
   $("ifreq").onchange=function(){ S.freq=parseInt($("ifreq").value,10); saveDraft(); syncEquip(); toast("年"+S.freq+"回に更新しました"); };
   S.date=$("idate").value;
   renderList(); show("scr-list"); startStatusPolling(!!(STATUS&&STATUS.now)); updateUnsentBar();
+}
+/* 点検日を変えたら、その日の保存済み記録をすぐ読み直す（45秒ごとの自動更新を待たない） */
+function onDateChanged(){
+  S.date=$("idate").value; saveDraft(); renderList();
+  loadStatus(function(res){ var n=Object.keys((res&&res.ok&&res.done)||{}).length;
+    toast(String(S.date).replace(/-/g,"/")+" の保存済み記録："+n+"台"+(n?"　「✎ 修正」で直せます":"")); });
+}
+/* 点検日のドロップダウン：今日 ＋ この現場で記録のある日付（新しい順）＋ 別の日を指定 */
+function buildDateOptions(){
+  var sel=$("idateSel"); if(!sel) return;
+  var cur=$("idate").value||S.date||todayStr(); var today=todayStr();
+  var opts=[]; var seen={};
+  var add=function(v,label){ if(!v||seen[v]) return; seen[v]=true; opts.push({v:v,label:label}); };
+  add(today,"今日　"+today.replace(/-/g,"/"));
+  (S.dates||[]).forEach(function(d){ var v=String(d.date||""); if(!v) return; var lb=v.replace(/-/g,"/")+"　"+(d.count||Object.keys(d.units||{}).length||"")+"台"+(d.inspectors?"　"+d.inspectors:""); add(v,lb); });
+  if(cur&&!seen[cur]) add(cur,cur.replace(/-/g,"/"));
+  sel.innerHTML=opts.map(function(o){ return '<option value="'+esc(o.v)+'">'+esc(o.label)+'</option>'; }).join('')+'<option value="__other">別の日を指定…</option>';
+  sel.value=cur;
 }
 function renderList(){
   var done=S.units.filter(function(u){return u.done;}).length;
