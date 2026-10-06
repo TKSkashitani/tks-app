@@ -23,6 +23,15 @@
   header p{ margin:3px 0 0; font-size:11px; color:#BDD7EE; }
   .back{ background:none; border:none; color:#BDD7EE; font-size:13px; padding:0; margin-bottom:4px; font-family:inherit; }
   .tsw{ margin:6px 0 0; background:#FFE699; color:#7F6000; border:none; border-radius:9px; font-size:12px; font-weight:700; padding:6px 12px; font-family:inherit; }
+  #rptInner [data-f],#rptInner [data-item]{ cursor:pointer; }
+  #rptInner .ed{ outline:2px solid #E65100; outline-offset:-2px; background:#FFF3E0 !important; }
+  #chz{ position:fixed; z-index:300; background:#fff; border:1px solid #999; border-radius:12px; box-shadow:0 6px 24px rgba(0,0,0,.25); padding:8px; display:flex; gap:6px; flex-wrap:wrap; max-width:320px; }
+  #chz button{ min-width:46px; height:42px; border:1px solid #ccc; border-radius:9px; background:#fff; font-size:17px; font-family:inherit; padding:0 10px; }
+  #chz button.x{ font-size:12px; color:#843C39; }
+  #chz .t{ width:100%; font-size:11px; color:#666; margin:0 0 2px; }
+  #edBar{ display:flex; gap:8px; align-items:center; margin:6px 0; }
+  #edBar .sv{ background:#E65100; color:#fff; border:none; border-radius:9px; height:36px; padding:0 14px; font-weight:700; font-family:inherit; }
+  #edBar .cx{ background:none; border:1px solid #bbb; border-radius:9px; height:36px; padding:0 12px; font-family:inherit; }
   .hedit{ display:inline-block; margin:6px 8px 0 0; vertical-align:middle; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.5); color:#fff; border-radius:9px; font-size:12px; padding:6px 10px; font-family:inherit; }
   .sec{ background:#fff; margin:10px; border-radius:14px; padding:12px 14px; border:1px solid #eee; }
   label.f{ display:block; font-size:12px; color:#555; margin:8px 0 4px; }
@@ -387,7 +396,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v54";
+var APP_VERSION="v55";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -685,16 +694,92 @@ function previewReport(fmt){
   info.textContent="プレビューを作成中…（写真の枚数によって少し時間がかかります）";
   r.withSuccessHandler(function(res){
     if(!res||!res.ok){ info.textContent="作成できませんでした："+((res&&res.error)||""); return; }
-    RPT.fmt=fmt; RPT.zoom=false; inner.innerHTML=res.html;
+    RPT.fmt=fmt; RPT.zoom=false; inner.innerHTML=res.html; ED={}; inner.onclick=onPreviewTap;
     var zb=document.createElement("button"); zb.className="sb"; zb.style.cssText="height:28px;padding:0 10px;margin-left:8px"; zb.textContent="拡大"; zb.onclick=toggleZoom;
-    info.innerHTML=(fmt==="a4"?"A4縦":"フジマック様式（A3横）")+"　"+res.pages+"ページ・写真"+res.photoCount+"枚"+(res.warnings&&res.warnings.length?"<br><span style='color:#843C39'>"+esc(res.warnings.join(" / "))+"</span>":"");
+    info.innerHTML=(fmt==="a4"?"A4縦":"フジマック様式（A3横）")+"　"+res.pages+"ページ・写真"+res.photoCount+"枚"+(res.warnings&&res.warnings.length?"<br><span style='color:#843C39'>"+esc(res.warnings.join(" / "))+"</span>":"")
+      +"<br><span style='color:#E65100'>表のセル（○△◎×・総合判定・評価・型番・製番・機器名・連絡事項）をタップすると直接書き換えられます。「拡大」すると押しやすくなります。</span><div id='edBar'></div>";
     info.appendChild(zb);
     fitPreview();
     inner.querySelectorAll("img").forEach(function(im){ im.addEventListener("load",fitPreview); });
     setTimeout(fitPreview,400); setTimeout(fitPreview,2000);
     wrap.scrollIntoView({behavior:"smooth",block:"start"});
   }).withFailureHandler(function(e){ info.textContent="通信エラー："+((e&&e.message)||e); })
-   .getReportHtml({ site:LAST.site, date:LAST.date, format:fmt, section:($("doneSection").value||"").trim(), inspector:($("doneInspector").value||"").trim(), rows:reqRows() });
+   .getReportHtml({ site:LAST.site, date:LAST.date, format:fmt, section:($("doneSection").value||"").trim(), inspector:($("doneInspector").value||"").trim(), rows:reqRows(), editable:true });
+}
+/* ---------- プレビューの点検表を直接編集 ---------- */
+var ED={};   // { row: { items:{名前:判定}, overall, grade, equip, model, serial, defects } }
+var SYM2J={"○":"異常なし","△":"清掃・調整","◎":"要交換","×":"故障・不良","／":"対象外"};
+var GRADE_TXT={A:"問題ない",B:"修繕推奨",C:"破損・修理必要",D:"機器更新必要"};
+function edFor(row){ return ED[row]||(ED[row]={items:{}}); }
+function edMark(el){ el.classList.add("ed"); updateEdBar(); }
+function closeChz(){ var c=$("chz"); if(c) c.remove(); document.removeEventListener("click",chzOutside,true); }
+function chzOutside(e){ var c=$("chz"); if(c&&!c.contains(e.target)){ closeChz(); } }
+function openChz(e,title,opts,onPick){
+  closeChz();
+  var c=document.createElement("div"); c.id="chz";
+  c.innerHTML='<p class="t">'+esc(title)+'</p>';
+  opts.forEach(function(o){ var b=document.createElement("button"); b.type="button"; b.textContent=o.label; if(o.clear) b.className="x"; b.onclick=function(ev){ ev.stopPropagation(); closeChz(); onPick(o.value); }; c.appendChild(b); });
+  document.body.appendChild(c);
+  var x=Math.min(Math.max(8,e.clientX-c.offsetWidth/2), window.innerWidth-c.offsetWidth-8), y=e.clientY+14; if(y+c.offsetHeight>window.innerHeight-8) y=e.clientY-c.offsetHeight-14;
+  c.style.left=x+"px"; c.style.top=Math.max(8,y)+"px";
+  setTimeout(function(){ document.addEventListener("click",chzOutside,true); },0);
+}
+function onPreviewTap(e){
+  var el=e.target.closest("[data-item],[data-f]"); if(!el) return;
+  var rowEl=el.closest("[data-row]"); if(!rowEl) return; var row=rowEl.getAttribute("data-row"); if(!row) return;
+  e.preventDefault(); e.stopPropagation();
+  var item=el.getAttribute("data-item"), f=el.getAttribute("data-f");
+  if(item){
+    openChz(e, item, [{label:"○",value:"異常なし"},{label:"△",value:"清掃・調整"},{label:"◎",value:"要交換"},{label:"×",value:"故障・不良"},{label:"／",value:"対象外"}], function(v){
+      el.textContent=Object.keys(SYM2J).filter(function(k){return SYM2J[k]===v;})[0]||""; edFor(row).items[item]=v; edMark(el); });
+    return;
+  }
+  if(f==="overall"){
+    openChz(e, "総合判定", ["良好","要修理","要入替","経過観察"].map(function(x){return {label:x,value:x};}).concat([{label:"消す",value:"",clear:true}]), function(v){
+      var o=el.querySelector(".o")||el.querySelector(".v")||el; o.textContent=v||"—"; edFor(row).overall=v; edMark(el); });
+    return;
+  }
+  if(f==="grade"){
+    openChz(e, "機器評価", ["A","B","C","D"].map(function(x){return {label:x+" "+GRADE_TXT[x],value:x};}).concat([{label:"消す",value:"",clear:true}]), function(v){
+      var o=el.querySelector(".o"), a=el.querySelector(".a"), vv=el.querySelector(".v");
+      if(vv){ vv.textContent=v?(v+"　"+GRADE_TXT[v]):"—"; } else { if(o) o.textContent=v; if(a) a.textContent=v?GRADE_TXT[v]:""; else if(v){ var sp=document.createElement("span"); sp.className="a"; sp.textContent=GRADE_TXT[v]; el.appendChild(sp); } }
+      edFor(row).grade=v; edMark(el); });
+    return;
+  }
+  var labels={equip:"機器名",model:"型番",serial:"製番",defects:"不良・交換（連絡事項）"};
+  if(labels[f]){
+    var cur=(ED[row]&&ED[row][f]!=null)?ED[row][f]:(f==="defects"?(el.innerText.replace(/^.*?不良・交換：/s,"").replace(/（タップして不良・交換を入力）/,"").trim()):el.textContent.trim());
+    var v=prompt(labels[f]+"を入力", cur); if(v===null) return; v=v.trim();
+    edFor(row)[f]=v;
+    if(f==="defects"&&el.querySelector(".pn")){ var pn=el.querySelector(".pn").outerHTML, b=el.querySelector("b")?el.querySelector("b").outerHTML:""; el.innerHTML=pn+b+"　"+(v?esc("不良・交換："+v):'<span style="color:#999">（タップして不良・交換を入力）</span>'); }
+    else el.textContent=v;
+    edMark(el);
+  }
+}
+function updateEdBar(){
+  var bar=$("edBar"); if(!bar) return; var rows=Object.keys(ED).filter(function(r){ var x=ED[r]; return Object.keys(x.items).length||["overall","grade","equip","model","serial","defects"].some(function(k){return x[k]!=null;}); });
+  if(!rows.length){ bar.innerHTML=""; return; }
+  bar.innerHTML='<button type="button" class="sv" onclick="saveEdits()">変更を保存（'+rows.length+'台）</button><button type="button" class="cx" onclick="previewReport(RPT.fmt)">取消</button>';
+}
+function saveEdits(){
+  var rows=Object.keys(ED); if(!rows.length) return;
+  if(!confirm(rows.length+"台分の変更を点検記録に保存します。よろしいですか？")) return;
+  var bar=$("edBar"); bar.innerHTML='<span style="font-size:12px;color:#555">保存中…</span>';
+  var i=0, okN=0, errs=[];
+  (function next(){
+    if(i>=rows.length){
+      ED={}; toast("保存しました（"+okN+"台）"+(errs.length?"／失敗 "+errs.length:""));
+      if(errs.length) alert("保存できなかった機器があります：\n"+errs.join("\n"));
+      previewReport(RPT.fmt); refreshSiteData(); if(typeof loadDoneUnits==="function") loadDoneUnits();
+      return;
+    }
+    var row=rows[i++], x=ED[row]; var p={ row:Number(row), site:LAST.site, editor:S.inspector||"" };
+    if(Object.keys(x.items).length) p.items=x.items;
+    ["overall","grade","equip","model","serial","defects"].forEach(function(k){ if(x[k]!=null) p[k]=x[k]; });
+    var r=srv(); if(!r){ errs.push("行"+row+"：通信できません"); next(); return; }
+    r.withSuccessHandler(function(res){ if(res&&res.ok) okN++; else errs.push("行"+row+"："+((res&&res.error)||"不明")); next(); })
+     .withFailureHandler(function(e){ errs.push("行"+row+"："+((e&&e.message)||e)); next(); }).patchInspection(p);
+  })();
 }
 function fitPreview(){
   var box=$("rptScale"), inner=$("rptInner"); var page=inner.querySelector(".page"); if(!page) return;
