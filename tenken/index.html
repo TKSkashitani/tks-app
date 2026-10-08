@@ -224,6 +224,7 @@
     <div id="prevInfo" class="info hide"></div>
     <div class="legend">○ 異常なし　△ 清掃・調整　◎ 要交換　× 故障・不良　／ 対象外<br><span style="color:#777">選ばなかった項目は保存時に「／ 対象外」になります</span></div>
     <div id="editBar" class="editbar hide"></div>
+    <div id="editDateWrap" class="sec hide"><label class="f">点検日（点検を行った日に直せます）</label><select id="editDateSel"></select><input type="date" id="editDate" class="hide" style="margin-top:6px"></div>
     <div id="items"></div>
 
     <div class="sec">
@@ -396,7 +397,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v56";
+var APP_VERSION="v57";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -1010,6 +1011,7 @@ function openUnitEdit(row, from){
     $("unitSub").textContent=u.type+(u.model?" ／ "+u.model:"")+(u.serial?" ／ "+u.serial:"");
     $("editBar").textContent="保存済みの記録（点検日 "+String(rec.date||"").replace(/-/g,"/")+"　点検者 "+(rec.inspector||"")+"）を修正しています。○△◎×・写真・判定を直して、下の「修正を保存（上書き）」を押してください。写真の×は記録から外すだけで、ドライブの写真は消えません。写真の「⇄ 別の機器へ」で、間違えて付けた写真を別の機器の記録へ移せます（その場で反映）。";
     $("editBar").classList.remove("hide");
+    buildEditDateOptions(String(rec.date||"").slice(0,10));
     $("udefects").value=u.defects; $("uremarks").value=u.remarks;
     defectOnly=false; var fb=$("qbFlt"); if(fb) fb.className="qb"; $("qbPrev").classList.add("hide"); $("prevInfo").classList.add("hide");
     renderThumbs(); renderItems(u); renderSummary(u);
@@ -1048,11 +1050,25 @@ function movePhotoTo(k,i){
   }).withFailureHandler(function(){ $("pickList").innerHTML='<span style="color:#A32D2D;font-size:12px">読み込めませんでした</span>'; })
    .getInspectionUnits(S.site, EDIT.rec.date);
 }
+/* 修正画面の点検日：記録の日付／この現場で記録のある日付／今日／別の日 */
+function buildEditDateOptions(cur){
+  var wrap=$("editDateWrap"), sel=$("editDateSel"), inp=$("editDate"); if(!wrap||!sel) return;
+  var seen={}, opts=[]; var add=function(v,label){ if(!v||seen[v]) return; seen[v]=true; opts.push({v:v,label:label}); };
+  if(cur) add(cur,"記録の点検日　"+cur.replace(/-/g,"/"));
+  (S.dates||[]).forEach(function(d){ var v=String(d.date||""); add(v,v.replace(/-/g,"/")+"　"+(d.count||"")+"台"+(d.inspectors?"　"+d.inspectors:"")); });
+  add(todayStr(),"今日　"+todayStr().replace(/-/g,"/"));
+  sel.innerHTML=opts.map(function(o){ return '<option value="'+esc(o.v)+'">'+esc(o.label)+'</option>'; }).join('')+'<option value="__other">別の日を指定…</option>';
+  sel.value=cur||todayStr(); inp.value=cur||""; inp.classList.add("hide");
+  sel.onchange=function(){ if(sel.value==="__other"){ inp.classList.remove("hide"); try{ inp.showPicker(); }catch(e){} } else { inp.classList.add("hide"); inp.value=sel.value; } };
+  inp.onchange=function(){ if(inp.value){ if(!seen[inp.value]){ var o=document.createElement("option"); o.value=inp.value; o.textContent=inp.value.replace(/-/g,"/"); sel.insertBefore(o, sel.lastElementChild); seen[inp.value]=true; } sel.value=inp.value; inp.classList.add("hide"); } };
+  wrap.classList.remove("hide");
+}
+function editDateValue(){ var sel=$("editDateSel"), inp=$("editDate"); if(!sel) return ""; return (sel.value==="__other")?(inp.value||""):(sel.value||""); }
 function exitEditMode(){
   var e=EDIT; EDIT=null;
   if(e && cur>=0 && S.units[cur]) S.units[cur]=e.backup;   // 修正前の状態（未入力など）に戻す＝「保存」で二重送信しない
   cur=-1;
-  $("editBar").classList.add("hide"); $("unitDoneBtn").classList.remove("hide"); $("unitSaveEditBtn").classList.add("hide");
+  $("editBar").classList.add("hide"); $("editDateWrap").classList.add("hide"); $("unitDoneBtn").classList.remove("hide"); $("unitSaveEditBtn").classList.add("hide");
   document.querySelector("#scr-unit .back").textContent="‹ 機器一覧へ";
   return e;
 }
@@ -1061,7 +1077,8 @@ function saveEdit(){
   if(!EDIT||cur<0) return; var u=S.units[cur]; var e=EDIT;
   u.defects=$("udefects").value; u.remarks=$("uremarks").value;
   var list=ITEMS_BY_TYPE[u.type]||[];
-  var payload={ row:e.row, site:S.site, editor:S.inspector||"", section:S.section||"", header:e.header||null,
+  var newDate=editDateValue(); var origDate=String(e.rec&&e.rec.date||"").slice(0,10);
+  var payload={ row:e.row, site:S.site, editor:S.inspector||"", section:S.section||"", header:e.header||null, date:(newDate&&newDate!==origDate)?newDate:null,
     items:list.map(function(it,idx){ return {no:String(idx+1),place:it[0],name:it[1],judge:u.judged[idx]||"対象外"}; }),   // 未選択＝対象外（／）
     summary:{overall:u.overall,action:u.action,grade:u.grade}, defects:u.defects, remarks:u.remarks,
     keepPhotoIds:u.photosAll.concat(u.photosBad).filter(function(p){return p.id;}).map(function(p){return p.id;}),
