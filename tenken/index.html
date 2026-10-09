@@ -398,7 +398,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v60";
+var APP_VERSION="v61";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -700,7 +700,7 @@ function previewReport(fmt){
     RPT.fmt=fmt; RPT.zoom=false; inner.innerHTML=res.html; ED={}; inner.onclick=onPreviewTap;
     var zb=document.createElement("button"); zb.className="sb"; zb.style.cssText="height:28px;padding:0 10px;margin-left:8px"; zb.textContent="拡大"; zb.onclick=toggleZoom;
     info.innerHTML=(fmt==="a4"?"A4縦":"フジマック様式（A3横）")+"　"+res.pages+"ページ・写真"+res.photoCount+"枚"+(res.warnings&&res.warnings.length?"<br><span style='color:#843C39'>"+esc(res.warnings.join(" / "))+"</span>":"")
-      +"<br><span style='color:#E65100'>表のセル（○△◎×・総合判定・評価・型番・製番・年式・機器名・連絡事項）をタップすると直接書き換えられます。年式は「2023」か「2023.07」で入れると経過年数も自動で出ます。「拡大」すると押しやすくなります。</span><div id='edBar'></div>";
+      +"<br><span style='color:#E65100'>表のセル（○△◎×・総合判定・評価・型番・製番・年式・機器名・連絡事項）をタップすると直接書き換えられます。年式はプルダウンで年（不明も可）と月を選ぶと経過年数も自動で出ます。「拡大」すると押しやすくなります。</span><div id='edBar'></div>";
     info.appendChild(zb);
     fitPreview();
     inner.querySelectorAll("img").forEach(function(im){ im.addEventListener("load",fitPreview); });
@@ -719,6 +719,24 @@ var SELEL=null;
 function selCell(el){ if(SELEL) SELEL.classList.remove("sel"); SELEL=el||null; if(SELEL) SELEL.classList.add("sel"); }
 function closeChz(){ var c=$("chz"); if(c) c.remove(); document.removeEventListener("click",chzOutside,true); selCell(null); }
 function chzOutside(e){ var c=$("chz"); if(c&&!c.contains(e.target)){ closeChz(); } }
+/** 年式の選択パネル：年（不明／今年〜1980）と月（ー／1〜12）をプルダウンで選ぶ。戻りは "" / "2023" / "2023.07" */
+function openYearChooser(e,cur,onPick){
+  closeChz();
+  var mm=/^(\d{4})(?:[.\/](\d{1,2}))?/.exec(String(cur||"").trim()); var cy=mm?mm[1]:"", cm=mm&&mm[2]?String(Number(mm[2])):"";
+  var c=document.createElement("div"); c.id="chz"; c.style.maxWidth="340px";
+  var now=new Date().getFullYear(), yo='<option value="">不明</option>';
+  for(var y=now;y>=1980;y--) yo+='<option value="'+y+'"'+(String(y)===cy?' selected':'')+'>'+y+'年</option>';
+  var mo='<option value="">ー</option>'; for(var m=1;m<=12;m++) mo+='<option value="'+m+'"'+(String(m)===cm?' selected':'')+'>'+m+'月</option>';
+  c.innerHTML='<p class="t">年式（製造年）を選ぶ。分からなければ「不明」。月は分かれば（経過年数が正確になります）</p>'
+    +'<select id="ychY" style="height:42px;font-size:17px;border:1px solid #ccc;border-radius:9px;padding:0 8px;flex:1 1 120px">'+yo+'</select>'
+    +'<select id="ychM" style="height:42px;font-size:17px;border:1px solid #ccc;border-radius:9px;padding:0 8px;flex:1 1 80px">'+mo+'</select>'
+    +'<button type="button" id="ychOk" style="flex:1 1 100%;background:#1F3864;color:#fff;border:none;font-weight:700">決定</button>';
+  document.body.appendChild(c);
+  var x=Math.min(Math.max(8,e.clientX-c.offsetWidth/2), window.innerWidth-c.offsetWidth-8), y2=e.clientY+14; if(y2+c.offsetHeight>window.innerHeight-8) y2=e.clientY-c.offsetHeight-14;
+  c.style.left=x+"px"; c.style.top=Math.max(8,y2)+"px";
+  $("ychOk").onclick=function(ev){ ev.stopPropagation(); var yy=$("ychY").value, mmv=$("ychM").value; closeChz(); onPick(yy?(mmv?yy+"."+("0"+mmv).slice(-2):yy):""); };
+  setTimeout(function(){ document.addEventListener("click",chzOutside,true); },0);
+}
 function openChz(e,title,opts,onPick){
   closeChz();
   var c=document.createElement("div"); c.id="chz";
@@ -754,15 +772,15 @@ function onPreviewTap(e){
   }
   if(f==="year"||f==="age"){
     var cur0=(ED[row]&&ED[row].year!=null)?ED[row].year:(rowEl.querySelector('[data-f="year"]')||{}).textContent||"";
-    var yv=prompt("年式を入力（例：2023 または 2023.07）。経過年数は自動で計算します", String(cur0).replace(/年$/,"").trim()); if(yv===null) return; yv=yv.trim();
-    if(yv&&!/^\d{4}([.\/]\d{1,2})?$/.test(yv)){ alert("「2023」か「2023.07」の形で入れてください"); return; }
-    edFor(row).year=yv;
-    var yc=rowEl.querySelector('[data-f="year"]'), ac=rowEl.querySelector('[data-f="age"]');
-    var mm=/^(\d{4})(?:[.\/](\d{1,2}))?$/.exec(yv); var ageTxt="";
-    if(mm){ var d0=new Date((LAST&&LAST.date)||todayStr()); var y=Number(mm[1]), m=mm[2]?Number(mm[2]):0;
-      ageTxt=(m?Math.max(0,Math.floor(((d0.getFullYear()*12+d0.getMonth()+1)-(y*12+m))/12)):Math.max(0,d0.getFullYear()-y))+"年"; }
-    if(yc){ yc.textContent=mm?mm[1]:"不明"; edMark(yc); }   // 表示は年だけ（月は経過年数の計算にだけ使う）。空なら「不明」
-    if(ac){ ac.textContent=ageTxt||"ー"; edMark(ac); }
+    openYearChooser(e, String(cur0), function(yv){   // プルダウンで「不明」か 年（＋任意で月）を選ぶ（2026-10-09 指示：手入力をやめる）
+      edFor(row).year=yv;
+      var yc=rowEl.querySelector('[data-f="year"]'), ac=rowEl.querySelector('[data-f="age"]');
+      var mm=/^(\d{4})(?:[.\/](\d{1,2}))?$/.exec(yv); var ageTxt="";
+      if(mm){ var d0=new Date((LAST&&LAST.date)||todayStr()); var y=Number(mm[1]), m=mm[2]?Number(mm[2]):0;
+        ageTxt=(m?Math.max(0,Math.floor(((d0.getFullYear()*12+d0.getMonth()+1)-(y*12+m))/12)):Math.max(0,d0.getFullYear()-y))+"年"; }
+      if(yc){ yc.textContent=mm?mm[1]:"不明"; edMark(yc); }   // 表示は年だけ（月は経過年数の計算にだけ使う）。不明なら「不明」
+      if(ac){ ac.textContent=ageTxt||"ー"; edMark(ac); }
+    });
     return;
   }
   var labels={equip:"機器名",model:"型番",serial:"製番",defects:"不良・交換（連絡事項）"};
