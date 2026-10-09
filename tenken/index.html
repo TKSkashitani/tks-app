@@ -398,7 +398,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v61";
+var APP_VERSION="v62";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -1045,6 +1045,7 @@ function openUnitEdit(row, from){
     $("unitTitle").textContent="修正："+(i+1)+"号機　"+(u.name||"");
     $("unitSub").textContent=u.type+(u.model?" ／ "+u.model:"")+(u.serial?" ／ "+u.serial:"");
     $("editBar").textContent="保存済みの記録（点検日 "+String(rec.date||"").replace(/-/g,"/")+"　点検者 "+(rec.inspector||"")+"）を修正しています。○△◎×・写真・判定を直して、下の「修正を保存（上書き）」を押してください。写真の×は記録から外すだけで、ドライブの写真は消えません。写真の「⇄ 別の機器へ」で、間違えて付けた写真を別の機器の記録へ移せます（その場で反映）。";
+    var cb=document.createElement("button"); cb.type="button"; cb.className="btn del"; cb.style.marginTop="8px"; cb.textContent="この記録を取り消して「未」に戻す"; cb.onclick=cancelInspectionRec; $("editBar").appendChild(cb);
     $("editBar").classList.remove("hide");
     buildEditDateOptions(String(rec.date||"").slice(0,10));
     $("udefects").value=u.defects; $("uremarks").value=u.remarks;
@@ -1106,6 +1107,18 @@ function exitEditMode(){
   $("editBar").classList.add("hide"); $("editDateWrap").classList.add("hide"); $("unitDoneBtn").classList.remove("hide"); $("unitSaveEditBtn").classList.add("hide");
   document.querySelector("#scr-unit .back").textContent="‹ 機器一覧へ";
   return e;
+}
+/* 修正モード：保存済みの記録を取り消して「未」に戻す（サーバー側は退避シートへ移すだけで消さない） */
+function cancelInspectionRec(){
+  if(!EDIT||cur<0) return; var e=EDIT; var u=S.units[cur];
+  if(!confirm((u.name||"この機器")+" の "+String(e.rec&&e.rec.date||"").replace(/-/g,"/")+" の記録を取り消して「未」に戻します。\n記録は「点検記録_取消」シートに残り、写真も消えません。よろしいですか？")) return;
+  var r=srv(); if(!r){ toast("プレビューモードでは使えません"); return; }
+  toast("取り消し中…");
+  r.withSuccessHandler(function(res){
+    if(!res||!res.ok){ alert("取り消せませんでした"+(res&&res.error?"：\n"+res.error:"")); return; }
+    var k=unitKey(u); exitEditMode(); if(STATUS.done) delete STATUS.done[k];
+    toast("取り消しました。「未」に戻っています"); renderList(); show("scr-list"); refreshSiteData(); loadStatus();
+  }).withFailureHandler(function(){ alert("通信エラーで取り消せませんでした。もう一度お試しください"); }).cancelInspection({row:e.row, site:S.site, editor:S.inspector||""});
 }
 function cancelEdit(){ var e=exitEditMode(); if(e&&e.from==="done"&&LAST){ show("scr-done"); } else { renderList(); show("scr-list"); } }
 function saveEdit(){
