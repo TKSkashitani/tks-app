@@ -779,8 +779,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--g200)">
       <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:10px">🤖 AI設定</div>
       <div class="fg">
-        <label>Gemini APIキー</label>
-        <input type="password" id="set-apikey" placeholder="AIzaSy... （Google AI Studioで発行）">
+        <label>APIキー（下で選んだAIのもの）</label>
+        <input type="password" id="set-apikey" placeholder="Gemini: AIzaSy…（Google AI Studio）／ Claude: sk-ant-…">
         <div style="font-size:10px;color:var(--g400);margin-top:4px">キーはこの端末のみに保存されます</div>
       </div>
       <div class="fg">
@@ -1585,9 +1585,8 @@ ${contextInfo}`
 
   const prompt = prompts[typeIdx];
   const aiModel = localStorage.getItem('ai_model') || 'gemini';
-  // APIキーは固定埋め込み（localStorageの設定より優先）
-  const FIXED_API_KEY = 'AIzaSyAM_o03SJeRMrjkol6w6iPyv_Bez1vkoeU';
-  const apiKey = FIXED_API_KEY || localStorage.getItem('ai_apikey') || '';
+  // APIキーは端末の設定（⚙ → AI設定）に保存したものだけを使う。ページに埋め込まない（2026-10-13 公開リポに載っていたため撤去）
+  const apiKey = localStorage.getItem('ai_apikey') || '';
   let text = null;
 
   try {
@@ -1607,23 +1606,14 @@ ${contextInfo}`
         text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
       }
     } else {
-      // Claude API（フォールバック含む）
-      const body = JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{role:'user', content: prompt}]
-      });
-      for(const url of [
-        'https://api.anthropic.com/v1/messages',
-        'https://corsproxy.io/?https://api.anthropic.com/v1/messages'
-      ]) {
-        try {
-          const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body});
-          if(!res.ok) continue;
-          const data = await res.json();
-          text = data.content?.map(c=>c.text||'').join('').trim() || null;
-          if(text) break;
-        } catch(e) {}
+      // Claude API（ブラウザから直接。外部プロキシは使わない）
+      if(apiKey){
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+          body: JSON.stringify({ model:'claude-sonnet-5-5', max_tokens:1000, messages:[{role:'user', content: prompt}] })
+        });
+        if(res.ok){ const data = await res.json(); text = data.content?.map(c=>c.text||'').join('').trim() || null; }
       }
     }
   } catch(e) {}
