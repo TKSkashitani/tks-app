@@ -398,7 +398,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v63";
+var APP_VERSION="v64";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -503,12 +503,12 @@ function loadSites(){
 function renderSites(list){
   var q=($("siteSearch").value||"").trim();
   var box=$("siteList"); box.innerHTML="";
-  var f=list.filter(function(s){ return !q || s.site.indexOf(q)>=0; });
+  var f=list.filter(function(s){ return !q || s.site.indexOf(q)>=0 || String(s.client||"").indexOf(q)>=0; });
   if(!f.length){ box.innerHTML='<div class="sec" style="color:#777;font-size:13px;">登録された現場がありません。下のボタンから登録してください。</div>'; return; }
   var sec=document.createElement("div"); sec.className="sec";
   f.forEach(function(s){
     var d=document.createElement("div"); d.className="row"; d.onclick=function(){ pickSite(s.site); };
-    d.innerHTML='<div class="t"><p class="nm">'+esc(s.site)+'</p><p class="sb2">機器 '+s.count+'台'+(s.freq?' ／ 年'+s.freq+'回':'')+(s.last?' ／ 前回 '+s.last:'')+'</p></div><i style="color:#bbb">›</i>';
+    d.innerHTML='<div class="t"><p class="nm">'+esc(s.site)+'</p><p class="sb2">'+(s.client?esc(s.client)+' ／ ':'')+(s.count?'機器 '+s.count+'台':'<span style="color:#E65100">機器未登録（現地で追加できます）</span>')+(s.freq?' ／ 年'+s.freq+'回':'')+(s.last?' ／ 前回 '+s.last:'')+'</p></div><i style="color:#bbb">›</i>';
     sec.appendChild(d);
   });
   box.appendChild(sec);
