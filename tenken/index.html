@@ -26,6 +26,10 @@
   #rptInner [data-f],#rptInner [data-item]{ cursor:pointer; }
   #rptInner .ed{ outline:2px solid #E65100; outline-offset:-2px; background:#FFF3E0 !important; }
   #rptInner .sel{ outline:3px solid #1A73E8 !important; outline-offset:-3px; box-shadow:0 0 0 3px rgba(26,115,232,.25) inset; }
+  .inspchips{ display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 8px; }
+  .inspchips button{ border:1px solid #BDD7EE; background:#fff; color:#1F3864; border-radius:16px; padding:6px 12px; font-size:13px; font-family:inherit; }
+  .inspchips button.on{ background:#1F3864; color:#fff; border-color:#1F3864; font-weight:700; }
+  .inspchips .t{ width:100%; font-size:11px; color:#777; margin:0; }
   #chz{ position:fixed; z-index:300; background:#fff; border:1px solid #999; border-radius:12px; box-shadow:0 6px 24px rgba(0,0,0,.25); padding:8px; display:flex; gap:6px; flex-wrap:wrap; max-width:320px; }
   #chz button{ min-width:46px; height:42px; border:1px solid #ccc; border-radius:9px; background:#fff; font-size:17px; font-family:inherit; padding:0 10px; }
   #chz button.x{ font-size:12px; color:#843C39; }
@@ -182,8 +186,9 @@
     <div class="sec">
       <div class="grid2">
         <div><label class="f">点検日</label><select id="idateSel"></select><input type="date" id="idate" class="hide" style="margin-top:6px"></div>
-        <div><label class="f">点検者</label><input type="text" id="iinspector" placeholder="氏名"></div>
+        <div><label class="f">点検者</label><input type="text" id="iinspector" placeholder="氏名（下から選べます）"></div>
       </div>
+      <div id="inspChips" class="inspchips"></div>
       <label class="f">セクション名（フジマック様式の用紙に印字・任意）</label>
       <input type="text" id="isection" placeholder="例：厨房1F・食堂　（空欄なら用紙も空欄）">
       <label class="f">年間点検回数（この現場の契約）</label>
@@ -398,7 +403,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v64";
+var APP_VERSION="v65";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -873,10 +878,11 @@ function openList(){
     $("idate").classList.add("hide"); $("idate").value=v; onDateChanged();
   };
   $("idate").onchange=function(){ if(!$("idate").value) return; onDateChanged(); buildDateOptions(); };
-  $("iinspector").oninput=function(){ S.inspector=$("iinspector").value; saveDraft(); };
+  $("iinspector").oninput=function(){ S.inspector=$("iinspector").value; saveDraft(); renderInspChips(); };
   $("isection").value=S.section||""; $("isection").oninput=function(){ S.section=$("isection").value; saveDraft(); };
   if(!S.inspector && API.name) S.inspector=API.name;
   if(S.inspector) $("iinspector").value=S.inspector;
+  renderInspChips();
   $("ifreq").value=String(S.freq||2);
   $("ifreq").onchange=function(){ S.freq=parseInt($("ifreq").value,10); saveDraft(); syncEquip(); toast("年"+S.freq+"回に更新しました"); };
   S.date=$("idate").value;
@@ -1379,6 +1385,7 @@ function unitPayload(u){
 }
 function saveAll(){
   if(!S.inspector){ toast("点検者を入力してください"); return; }
+  rememberInspectors(S.inspector);
   var target=S.units.filter(function(u){return u.done && !isSaved(u);});
   var already=S.units.filter(function(u){return u.done && isSaved(u);}).length;
   if(!target.length){ toast(already?"点検済みの機器はすべて保存済みです":"点検済みの機器がありません"); return; }
@@ -1480,7 +1487,27 @@ setInterval(function(){ if(document.visibilityState==="visible") syncOutbox({});
 function resetAll(){ clearInterval(statusTimer); clearInterval(hbTimer); STATUS={done:{},claims:{},me:"",now:""}; S={site:"",date:"",inspector:"",freq:"",units:[]}; cur=-1; editMode=false; EDIT=null; show("scr-site"); boot(); }
 function applyMaster(master){ if(master && Object.keys(master).length){ Object.keys(master).forEach(function(t){ if(master[t] && master[t].length) ITEMS_BY_TYPE[t]=master[t]; }); } }
 /* 起動：前回のキャッシュ（現場一覧・点検項目）があれば即表示し、裏で1回の通信で最新に置き換える */
+/* 点検者名の候補（毎回打たずにタップで選ぶ）。サーバーの過去記録＋この端末で使った名前＋登録端末名＋この現場の過去の点検者 */
+var INSP_SRV=[], INSP_LOCAL=[];
+function splitNames(v){ return String(v||"").split(/[・、,，\/／]+/).map(function(x){return x.trim();}).filter(function(x){return x;}); }
+function inspCandidates(){
+  var seen={}, out=[]; var push=function(n){ n=String(n||"").trim(); if(!n||seen[n]||/^claude/i.test(n)) return; seen[n]=true; out.push(n); };
+  splitNames(S.inspector).forEach(push); if(API.name) splitNames(API.name).forEach(push);
+  INSP_LOCAL.forEach(push); (S.dates||[]).forEach(function(d){ splitNames(d.inspectors).forEach(push); }); INSP_SRV.forEach(push);
+  return out.slice(0,16);
+}
+function renderInspChips(){
+  var box=$("inspChips"); if(!box) return; var cur=splitNames($("iinspector").value); var list=inspCandidates();
+  box.innerHTML=""; if(!list.length) return;
+  var t=document.createElement("p"); t.className="t"; t.textContent="タップで選ぶ（複数人は続けてタップ。もう一度タップで外す）"; box.appendChild(t);
+  list.forEach(function(n){ var b=document.createElement("button"); b.type="button"; b.textContent=n; if(cur.indexOf(n)>=0) b.className="on";
+    b.onclick=function(){ var now=splitNames($("iinspector").value); var i=now.indexOf(n); if(i>=0) now.splice(i,1); else now.push(n);
+      $("iinspector").value=now.join("・"); S.inspector=$("iinspector").value; saveDraft(); renderInspChips(); };
+    box.appendChild(b); });
+}
+function rememberInspectors(v){ var add=splitNames(v); if(!add.length) return; add.forEach(function(n){ var i=INSP_LOCAL.indexOf(n); if(i>=0) INSP_LOCAL.splice(i,1); INSP_LOCAL.unshift(n); }); INSP_LOCAL=INSP_LOCAL.slice(0,20); kvSet("inspNames",INSP_LOCAL); }
 function boot(){
+  kvGet("inspNames").then(function(v){ if(v&&v.length) INSP_LOCAL=v; });
   $("ver").textContent=APP_VERSION+(isGas()?"":" PWA");
   if(!isGas()){
     // PWA：ホーム画面のアイコンから開いているか（Safari のタブだと7日で端末内データが消える）
@@ -1494,12 +1521,13 @@ function boot(){
   var shown=false;
   if(sites.length){ renderSites(sites); shown=true; }
   kvGet("boot").then(function(c){
+    if(c&&c.inspectors) INSP_SRV=c.inspectors;
     if(!shown && c&&c.sites&&c.sites.length){ applyMaster(c.master); sites=c.sites; renderSites(sites); shown=true; }
     var r=srv();
     if(!r){ $("offlineBar").classList.remove("hide"); if(!shown) renderSites([]); return; }
     if(!shown) $("siteList").innerHTML='<div class="sec" style="color:#777;font-size:13px">読み込み中…</div>';
     r.withSuccessHandler(function(b){
-      if(b&&b.ok){ applyMaster(b.master); sites=b.sites||[]; renderSites(sites); kvSet("boot",{master:b.master,sites:b.sites,at:Date.now()}); }
+      if(b&&b.ok){ applyMaster(b.master); sites=b.sites||[]; if(b.inspectors) INSP_SRV=b.inspectors; renderSites(sites); kvSet("boot",{master:b.master,sites:b.sites,inspectors:INSP_SRV,at:Date.now()}); }
       else if(!shown) renderSites([]);
     }).withFailureHandler(function(){ if(!shown){ renderSites([]); toast("電波がなく、取り込み済みの現場もありません"); } }).bootstrap();
   });
