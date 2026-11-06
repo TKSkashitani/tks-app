@@ -391,19 +391,27 @@ var sites=[], cur=-1, editMode=false;
 /* ---------- 同時利用の見える化（本日保存済み・他の人が点検中） ---------- */
 var STATUS={done:{},claims:{},me:"",now:""}; var statusTimer=null, hbTimer=null;
 function unitKey(u){ return String(u.no||"").trim() || (String(u.name||"")+"|"+String(u.model||"")+"|"+String(u.serial||"")); }
-function claimIsMine(cl){ if(!cl) return false; if(STATUS.me) return cl.id===STATUS.me; return cl.id!=="unknown" && cl.name===(S.inspector||""); }
+/* 2026-11-06：「点検中」を点検者名で見分けていたため、2台の端末で同じ点検者名（例：どちらも「柏谷・坂井」）だと相手の点検中が出なかった。
+   → 端末ごとの目印（登録トークンから作る4文字。トークンそのものは送らない）を名前の後ろに付けて、端末で見分ける。表示するときは目印を外す */
+function devTag(){ if(isGas()||!API.token) return ""; var h=5381, t=String(API.token); for(var i=0;i<t.length;i++){ h=((h<<5)+h+t.charCodeAt(i))>>>0; } return ("0000"+(h%65536).toString(16)).slice(-4); }
+function claimName(){ var n=S.inspector||API.name||""; var t=devTag(); return t ? n+"｜#"+t : n; }
+function claimLabel(n){ return String(n||"").split("｜#")[0]; }
+function claimIsMine(cl){ if(!cl) return false; if(STATUS.me) return cl.id===STATUS.me;
+  var mine=devTag(), theirs=String(cl.name||"").split("｜#")[1]||"";
+  if(mine) return theirs===mine;
+  return cl.id!=="unknown" && cl.name===(S.inspector||""); }
 function loadStatus(cb){ var r=srv(true); if(!r||!S.site) return;
   r.withSuccessHandler(function(res){ if(res&&res.ok){ STATUS=res; if(!$("scr-list").classList.contains("hide")) renderList(); } if(cb) cb(res); })
    .withFailureHandler(function(){}).getSiteStatus(S.site, S.date||$("idate").value); }
 function startStatusPolling(skipNow){ clearInterval(statusTimer); if(!skipNow) loadStatus(); statusTimer=setInterval(function(){ if(!$("scr-list").classList.contains("hide")) loadStatus(); },45000); }
 function claimCurrent(release){ var r=srv(true); if(!r||cur<0||!S.site) return; var u=S.units[cur];
-  r.withSuccessHandler(function(){}).withFailureHandler(function(){}).claimUnit(S.site, unitKey(u), S.inspector||"", !!release); }
+  r.withSuccessHandler(function(){}).withFailureHandler(function(){}).claimUnit(S.site, unitKey(u), claimName(), !!release); }
 
 function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v69";
+var APP_VERSION="v70";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -941,7 +949,7 @@ function renderList(){
       : (u.done && isSaved(u)) ? '<span class="badge b-done">保存済</span>'
       : u.done ? '<span class="badge b-done">入力済</span>'
       : (dn ? '<span class="badge b-done">保存済 '+esc(dn.inspector||"")+' '+esc(dn.at||"")+'</span>'+(dn.row?'<button type="button" class="edtb" data-row="'+dn.row+'">✎ 修正</button>':'')
-      : (cl && !claimIsMine(cl) ? '<span class="badge b-warn">点検中 '+esc(cl.name||"別の端末")+'</span>'
+      : (cl && !claimIsMine(cl) ? '<span class="badge b-warn">点検中 '+esc(claimLabel(cl.name)||"別の端末")+'</span>'
       : (od ? '<span class="badge" style="background:#DDEBF7;color:#1F3864">'+esc(od.label)+' に保存済</span>'+(od.row?'<button type="button" class="edtb" data-row="'+od.row+'">✎ 修正</button>':'')
       : (u.prevWarn ? '<span class="badge '+(u.prevWarn==="bad"?"b-bad":"b-warn")+'">前回 要対応</span>' : '<span class="badge b-none">未</span>'))));
     d.innerHTML='<div class="t"><p class="nm">'+(i+1)+'号機　'+esc(u.name||"（機器名未設定）")+'</p>'+
@@ -1259,7 +1267,7 @@ function openUnit(i){
   cur=i; var u=S.units[i];
   if(!u.type){ toast("先に機器種別を設定してください"); editUnit(i); return; }
   var uk=unitKey(u), ucl=STATUS.claims[uk], udn=STATUS.done[uk];
-  if(ucl && !claimIsMine(ucl) && !confirm((ucl.name||"別の端末")+" さんが点検中の機器です。続けますか？")){ cur=-1; return; }
+  if(ucl && !claimIsMine(ucl) && !confirm((claimLabel(ucl.name)||"別の端末")+" さんが点検中の機器です。続けますか？")){ cur=-1; return; }
   if(udn && !u.done && !confirm("この機器は本日 "+(udn.inspector||"")+" さんが "+udn.at+" に保存済みです。もう一度点検しますか？")){ cur=-1; return; }
   claimCurrent(false); clearInterval(hbTimer);
   hbTimer=setInterval(function(){ if(cur>=0 && !$("scr-unit").classList.contains("hide")) claimCurrent(false); else clearInterval(hbTimer); },60000);
@@ -1539,7 +1547,7 @@ function syncOutbox(opt){
           var sec=Math.round((Date.now()-(w.t0||Date.now()))/1000);
           if(!stopped && !remain){
             toast(sentUnits+"台を保存しました（写真"+photoN+"枚・"+sec+"秒）"); clearDraft();
-            var r2=srv(true); if(r2) r2.withSuccessHandler(function(){}).withFailureHandler(function(){}).releaseAllClaims(S.site, S.inspector||"");
+            var r2=srv(true); if(r2) r2.withSuccessHandler(function(){}).withFailureHandler(function(){}).releaseAllClaims(S.site, claimName());
             showDone({ site:S.site, date:S.date, rows:rowsAll, names:S.units.filter(function(u){return u.done;}).map(function(u){return u.name;}), fromList:false });
           } else {
             alert((sentUnits?sentUnits+"台は送信できました。\n":"")+"残り "+remain+" 件は送信待ちです（電波がないか、通信に失敗しました）。\n電波が戻ると自動で送ります。画面上部の「今すぐ送信」でも送れます。入力内容は端末に保存されています。");
