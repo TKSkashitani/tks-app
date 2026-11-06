@@ -403,7 +403,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v66";
+var APP_VERSION="v67";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -1005,12 +1005,30 @@ function saveEditor(){
     show("scr-unit"); return;
   }
   if(editIdx>=0){ var u=S.units[editIdx]; u.type=d.type; u.name=d.name; u.model=d.model; u.serial=d.serial; }
-  else { S.units.push(blankUnit(d)); }
+  else {
+    // 2026-11-06：同じ機器を別名で追加して二重に点検した事故（ロビン・オフタイムの炊飯器）の再発防止
+    var like=similarUnits(d);
+    if(like.length && !confirm("よく似た機器がすでに一覧にあります：\n\n"+like.slice(0,4).map(function(x){ return "・"+(x.i+1)+"号機 "+x.u.name+(x.u.model?"／"+x.u.model:"")+(x.u.serial?"／"+x.u.serial:"")+(x.u.no?"（"+x.u.no+"）":"")+"　← "+x.why; }).join("\n")+"\n\n同じ機器なら「キャンセル」を押して、一覧のその機器で点検してください。\n別の機器として追加する場合だけ「OK」を押してください。")) return;
+    S.units.push(blankUnit(d));
+  }
   syncEquip(); renderList(); show("scr-list"); toast("保存しました");
+}
+/* 追加しようとしている機器に似た機器（型式が同じ／製番が同じか前半一致）を探す。I と 1、O と 0 は同じ字として比べる */
+function normCode(v){ return String(v||"").normalize("NFKC").toUpperCase().replace(/[\s\-()（）.]/g,"").replace(/I/g,"1").replace(/O/g,"0"); }
+function similarUnits(d){
+  var m=normCode(d.model), sn=normCode(d.serial), out=[];
+  S.units.forEach(function(u,i){
+    var um=normCode(u.model), us=normCode(u.serial), why="";
+    if(sn && us && sn.length>=6 && us.length>=6 && (sn===us || sn.indexOf(us)===0 || us.indexOf(sn)===0)) why="製番が同じ";
+    else if(m && um && m===um) why="型式が同じ";
+    if(why) out.push({i:i,u:u,why:why});
+  });
+  return out;
 }
 function deleteEditor(){
   if(editIdx<0) return;
-  if(!confirm(S.units[editIdx].name+" を削除しますか？")) return;
+  var du=S.units[editIdx], dk=unitKey(du), dn=(STATUS.done||{})[dk];
+  if(!confirm(du.name+" を削除しますか？"+(dn?"\n\n※ この機器には "+(S.date||"")+" の保存済みの点検記録があります。機器を消しても記録は残り、点検表にも載ります。\n記録も消す場合は、先に「✎ 修正」→「この記録を取り消して『未』に戻す」を行うか、出力画面の一覧で「取消」を押してください。":""))) return;
   S.units.splice(editIdx,1); syncEquip(); renderList(); show("scr-list"); toast("削除しました");
 }
 function syncEquip(){
