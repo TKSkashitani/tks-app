@@ -401,8 +401,9 @@ function claimIsMine(cl){ if(!cl) return false; if(STATUS.me) return cl.id===STA
   if(mine) return theirs===mine;
   return cl.id!=="unknown" && cl.name===(S.inspector||""); }
 function loadStatus(cb){ var r=srv(true); if(!r||!S.site) return;
-  r.withSuccessHandler(function(res){ if(res&&res.ok){ STATUS=res; if(!$("scr-list").classList.contains("hide")) renderList(); } if(cb) cb(res); })
-   .withFailureHandler(function(){}).getSiteStatus(S.site, S.date||$("idate").value); }
+  var qs=S.site, qd=S.date||$("idate").value;   // 2026-11-06：点検日・現場を切り替えた直後に、切り替え前の返事が遅れて届いても一覧に出さない
+  r.withSuccessHandler(function(res){ if(S.site!==qs || (S.date||$("idate").value)!==qd) return; if(res&&res.ok){ STATUS=res; if(!$("scr-list").classList.contains("hide")) renderList(); } if(cb) cb(res); })
+   .withFailureHandler(function(){}).getSiteStatus(qs, qd); }
 function startStatusPolling(skipNow){ clearInterval(statusTimer); if(!skipNow) loadStatus(); statusTimer=setInterval(function(){ if(!$("scr-list").classList.contains("hide")){ if(S.__opened && !EDIT && !equipBusy && !editMode) refreshSiteData(); else loadStatus(); } },45000); }   // 2026-11-06：機器一覧も読み直す（他の端末が追加した機器が、現場を開き直さなくても出るように）
 function claimCurrent(release){ var r=srv(true); if(!r||cur<0||!S.site) return; var u=S.units[cur];
   r.withSuccessHandler(function(){}).withFailureHandler(function(){}).claimUnit(S.site, unitKey(u), claimName(), !!release); }
@@ -411,7 +412,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v71";
+var APP_VERSION="v72";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -611,8 +612,9 @@ function applySiteData(d){
   if(!$("scr-list").classList.contains("hide")) renderList();
 }
 function refreshSiteData(){ var r=srv(true); if(!r||!S.site) return;
-  r.withSuccessHandler(function(d){ if(d&&d.ok){ kvSet(siteCacheKey(S.site),{units:d.units,prevs:d.prevs,dates:d.dates||[],at:Date.now()}); applySiteData(d); } })
-   .withFailureHandler(function(){}).openSiteData(S.site, S.date||$("idate").value||todayStr()); }
+  var qs=S.site, qd=S.date||$("idate").value||todayStr();
+  r.withSuccessHandler(function(d){ if(S.site!==qs) return; if(d&&d.ok){ kvSet(siteCacheKey(qs),{units:d.units,prevs:d.prevs,dates:d.dates||[],at:Date.now()}); if((S.date||$("idate").value||todayStr())!==qd) d.status=null; applySiteData(d); } })
+   .withFailureHandler(function(){}).openSiteData(qs, qd); }
 function blankUnit(e){
   return { row:e.row||null, no:e.no||"", srvName:(e.row?(e.name||""):null), type:e.type||"", name:e.name||"", model:e.model||"", serial:e.serial||"",
            judged:{}, overall:"", grade:"", action:"", defects:"", remarks:"", photosAll:[], photosBad:[], done:false, prev:null };
