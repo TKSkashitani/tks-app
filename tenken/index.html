@@ -403,7 +403,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v67";
+var APP_VERSION="v68";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -546,7 +546,7 @@ function obDel(id){ delete MEM_OUTBOX[id]; return tx("outbox","readwrite",functi
 function obAll(){ return tx("outbox","readonly",function(s){ return s.getAll(); }).then(function(a){ (a||[]).forEach(function(c){ MEM_OUTBOX[c.id]=c; }); return Object.keys(MEM_OUTBOX).map(function(k){ return MEM_OUTBOX[k]; }); }).catch(function(){ return Object.keys(MEM_OUTBOX).map(function(k){ return MEM_OUTBOX[k]; }); }); }
 function siteCacheKey(site){ return "site:"+site; }
 function pickSite(site){
-  S.site=site; S.__opened=false;
+  S.site=site; S.__opened=false; REMOVED=[];
   kvGet(siteCacheKey(site)).then(function(cached){
     if(cached&&cached.units&&cached.units.length) applySiteData(cached);   // 端末に取り込んだ機器一覧を即表示（電波がなくてもここまで動く）。最新はすぐ後ろで読み直す
     var r=srv();
@@ -1029,19 +1029,44 @@ function deleteEditor(){
   if(editIdx<0) return;
   var du=S.units[editIdx], dk=unitKey(du), dn=(STATUS.done||{})[dk];
   if(!confirm(du.name+" を削除しますか？"+(dn?"\n\n※ この機器には "+(S.date||"")+" の保存済みの点検記録があります。機器を消しても記録は残り、点検表にも載ります。\n記録も消す場合は、先に「✎ 修正」→「この記録を取り消して『未』に戻す」を行うか、出力画面の一覧で「取消」を押してください。":""))) return;
+  REMOVED.push({key:dk,no:du.no||"",row:du.row||null,name:(du.srvName!=null?du.srvName:du.name)||""});
   S.units.splice(editIdx,1); syncEquip(); renderList(); show("scr-list"); toast("削除しました");
+}
+/* 2026-11-06：2台の端末で同時に機器を追加すると、相手が追加した機器を「この端末の一覧に無い＝削除された」とみなして台帳で撤去済にしていた（日野の森こども園）。
+   → 保存の直前に台帳の最新を取り込み、この端末がまだ知らない機器は一覧に足してから保存する。撤去にするのは、この端末で「削除」を押した機器（REMOVED）だけ。
+   → 保存は1つずつ順番に（続けて追加しても二重登録にならないように） */
+var REMOVED=[], equipBusy=false, equipAgain=false;
+function mergeServerUnits(listed){
+  var have={}, added=0;
+  S.units.forEach(function(u){ have[unitKey(u)]=1; if(u.row && !u.no) have["row:"+u.row]=1; });
+  var gone={}; REMOVED.forEach(function(x){ gone[x.key]=1; if(x.no) gone[x.no]=1; if(x.row && !x.no) gone["row:"+x.row]=1; });
+  (listed||[]).forEach(function(e){ var b=blankUnit(e), k=unitKey(b);
+    if(have[k] || (!e.no && e.row && have["row:"+e.row])) return;
+    if(gone[k] || (!e.no && e.row && gone["row:"+e.row])) return;
+    S.units.push(b); have[k]=1; added++; });
+  return added;
 }
 function syncEquip(){
   saveDraft();
+  if(equipBusy){ equipAgain=true; return; }
   var r=srv(); if(!r) return;
-  var units=S.units.slice();
-  var list=units.map(function(u){ return {row:u.row,no:u.no||"",type:u.type,name:u.name,model:u.model,serial:u.serial,srvName:(u.srvName!=null?u.srvName:u.name)}; });
-  r.withSuccessHandler(function(res){
-    if(!res||!res.ok){ toast("台帳への反映に失敗しました"+(res&&res.error?"："+res.error:"")); return; }
-    (res.rows||[]).forEach(function(x){ var u=units[x.idx]; if(u){ u.row=x.row; if(x.no&&!u.no) u.no=x.no; u.srvName=u.name; } });   // 台帳の今の行番号に合わせ直す
-    toast(res.warn ? res.warn : "機器構成を台帳に反映しました");
-    refreshSiteData();
-  }).saveEquipment(S.site,list,S.freq);
+  var site=S.site; equipBusy=true;
+  var fin=function(){ equipBusy=false; if(equipAgain){ equipAgain=false; if(S.site===site) syncEquip(); } };
+  srv(true).withSuccessHandler(function(latest){
+    if(S.site!==site){ fin(); return; }
+    if(!Array.isArray(latest)){ toast("台帳への反映に失敗しました（最新の機器一覧を取得できません）"); fin(); return; }
+    var merged=mergeServerUnits(latest);
+    if(merged){ saveDraft(); if(!$("scr-list").classList.contains("hide")) renderList(); }
+    var units=S.units.slice();
+    var list=units.map(function(u){ return {row:u.row,no:u.no||"",type:u.type,name:u.name,model:u.model,serial:u.serial,srvName:(u.srvName!=null?u.srvName:u.name)}; });
+    var removed=REMOVED.map(function(x){ return {no:x.no,row:x.row,name:x.name}; });
+    srv().withSuccessHandler(function(res){
+      if(!res||!res.ok){ toast("台帳への反映に失敗しました"+(res&&res.error?"："+res.error:"")); fin(); return; }
+      (res.rows||[]).forEach(function(x){ var u=units[x.idx]; if(u){ u.row=x.row; if(x.no&&!u.no) u.no=x.no; u.srvName=u.name; } });   // 台帳の今の行番号に合わせ直す
+      toast(res.warn ? res.warn : (merged ? "機器構成を台帳に反映しました（他の端末が追加した "+merged+" 台を一覧に取り込みました）" : "機器構成を台帳に反映しました"));
+      fin(); refreshSiteData();
+    }).withFailureHandler(function(){ toast("台帳への反映に失敗しました。電波の良い所でもう一度お試しください"); fin(); }).saveEquipment(site,list,S.freq,{removed:removed});
+  }).withFailureHandler(function(){ toast("電波が弱く、台帳へ反映できませんでした。電波の良い所でもう一度お試しください"); fin(); }).getEquipment(site);
 }
 
 /* ---------- 保存済みの記録をアプリで修正（上書き） ---------- */
