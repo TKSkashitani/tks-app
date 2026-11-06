@@ -403,7 +403,7 @@ function $(id){return document.getElementById(id);}
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v65";
+var APP_VERSION="v66";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -1042,7 +1042,7 @@ function openUnitEdit(row, from){
   r.withSuccessHandler(function(rec){
     if(!rec||!rec.ok){ toast("記録を読めませんでした"+(rec&&rec.error?"："+rec.error:"")); return; }
     var i=findUnitIndexFor(rec);
-    if(i<0){ toast("この機器（"+(rec.equip||"")+"）が機器一覧にありません"); return; }
+    if(i<0){ cancelRecordByRow(row, (rec.equip||"")+(rec.model?" "+rec.model:""), String(rec.date||"").slice(0,10), "この機器は機器一覧（台帳）にありません。修正はできません。\n"); return; }
     var u=S.units[i];
     EDIT={ row:row, from:from||"list", rec:rec, backup:JSON.parse(JSON.stringify(u)) };
     cur=i;
@@ -1166,9 +1166,23 @@ function renderDoneUnits(list){
   box.innerHTML=list.map(function(x){
     return '<div class="row" data-row="'+x.row+'"><div class="t"><p class="nm">'+esc(x.name||"")+(x.no?'　<span style="color:#666;font-weight:400;font-size:12px">'+esc(x.no)+'</span>':'')+'</p>'+
       '<p class="sb2">'+esc(x.type||"")+(x.model?" ／ "+esc(x.model):"")+'　点検者 '+esc(x.inspector||"")+(x.grade?'　評価 '+esc(x.grade):'')+(x.overall?'　'+esc(x.overall):'')+(x.photos?'　写真'+x.photos+'枚':'')+'</p></div>'+
-      '<button type="button" class="edtb">✎ 修正</button></div>';
+      (x.no?'':'<p class="sb2" style="color:#A32D2D">台帳に無い記録（管理No無し）。不要なら「取消」で消せます</p>')+'</div>'+
+      '<button type="button" class="edtb">✎ 修正</button><button type="button" class="edtb delb" style="color:#A32D2D;border-color:#E0B4B4;margin-left:6px" data-nm="'+esc((x.name||"")+(x.model?" "+x.model:""))+'">取消</button></div>';
   }).join('');
-  Array.prototype.forEach.call(box.querySelectorAll(".row"),function(d){ d.onclick=function(){ openUnitEdit(Number(d.getAttribute("data-row")),"done"); }; });
+  Array.prototype.forEach.call(box.querySelectorAll(".row"),function(d){
+    d.onclick=function(){ openUnitEdit(Number(d.getAttribute("data-row")),"done"); };
+    var db=d.querySelector(".delb"); if(db) db.onclick=function(ev){ ev.stopPropagation(); cancelRecordByRow(Number(d.getAttribute("data-row")), db.getAttribute("data-nm"), (LAST&&LAST.date)||"", ""); };
+  });
+}
+/* 保存済み記録を行番号で直接取り消す（機器一覧に無い記録でも消せる）。記録は「点検記録_取消」シートへ退避、写真は残る */
+function cancelRecordByRow(row, label, date, pre){
+  if(!row) return; var r=srv(); if(!r){ toast("プレビューモードでは使えません"); return; }
+  if(!confirm((pre||"")+"「"+(label||"この機器")+"」の "+String(date||"").replace(/-/g,"/")+" の記録を取り消しますか？\n記録は「点検記録_取消」シートに残り、写真も消えません。")) return;
+  toast("取り消し中…");
+  r.withSuccessHandler(function(res){
+    if(!res||!res.ok){ alert("取り消せませんでした"+(res&&res.error?"：\n"+res.error:"")); return; }
+    toast("取り消しました"); loadDoneUnits(); refreshSiteData(); loadStatus();
+  }).withFailureHandler(function(){ alert("通信エラーで取り消せませんでした。もう一度お試しください"); }).cancelInspection({row:row, site:S.site||(LAST&&LAST.site)||"", editor:S.inspector||API.name||""});
 }
 function loadDoneUnits(){
   var box=$("doneUnits"), cnt=$("doneUnitsCnt"); if(!box) return;
