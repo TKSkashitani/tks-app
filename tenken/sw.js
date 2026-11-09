@@ -1,6 +1,6 @@
 /* 機器点検 PWA のオフライン用キャッシュ。アプリ本体（index.html 等）だけを保存し、受信口（script.google.com）への通信はそのまま通す */
-var CACHE = 'tks-tenken-v72';
-var FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+var CACHE = 'tks-tenken-v73';
+var FILES = ['./', './index.html', './manual.html', './manifest.json', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
 });

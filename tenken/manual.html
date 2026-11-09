@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>機器点検アプリ 使い方</title>
+<script>
+/* アプリの中（github.io）で開いたときは、アプリと同じ明るい配色に固定する */
+if(/github\.io$/.test(location.hostname)) document.documentElement.setAttribute("data-theme","light");
+</script>
+<style>
+/* レイアウト：1カラム。上から「5ステップ → 約束 → 印 → 複数人 → こんなときは」。くわしい説明は折りたたみ。
+   画面の絵（.app）はアプリの実物と同じ色で再現し、明るい配色のまま固定 */
+:root{
+  --bg:#F4F5F7; --card:#FFFFFF; --ink:#1B2230; --sub:#5A6475; --line:#D9DDE4;
+  --navy:#1F3864; --navy-ink:#FFFFFF; --accent:#2F5597;
+  --warn-bg:#FFF4D6; --warn-line:#E6C56B; --warn-ink:#6B4E00;
+  --font:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Meiryo",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#12161D; --card:#1B212B; --ink:#E8ECF2; --sub:#A3ADBD; --line:#323B49;
+    --navy:#24437A; --navy-ink:#FFFFFF; --accent:#9DBBFF;
+    --warn-bg:#3A3112; --warn-line:#6E5A1C; --warn-ink:#F2DDA0;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#12161D; --card:#1B212B; --ink:#E8ECF2; --sub:#A3ADBD; --line:#323B49;
+  --navy:#24437A; --navy-ink:#FFFFFF; --accent:#9DBBFF;
+  --warn-bg:#3A3112; --warn-line:#6E5A1C; --warn-ink:#F2DDA0;
+}
+*{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; }
+body{ margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:17px; line-height:1.75; }
+header.top{ background:var(--navy); color:var(--navy-ink); padding:24px 16px 20px; }
+header.top .in, main{ max-width:680px; margin:0 auto; }
+header.top h1{ margin:0 0 6px; font-size:25px; line-height:1.3; text-wrap:balance; }
+header.top p{ margin:0; font-size:15px; opacity:.92; }
+main{ padding:18px 16px 48px; display:flex; flex-direction:column; gap:18px; }
+section{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 18px; }
+h2{ margin:0 0 14px; font-size:21px; line-height:1.4; color:var(--accent); text-wrap:balance; }
+h3{ margin:18px 0 6px; font-size:16.5px; line-height:1.5; }
+p{ margin:0 0 10px; }
+ul, ol{ margin:0 0 10px; padding-left:1.35em; }
+li{ margin:5px 0; }
+p:last-child, ul:last-child, ol:last-child{ margin-bottom:0; }
+.sub{ color:var(--sub); font-size:14.5px; }
+b.k{ background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:1px 7px; font-weight:600; font-size:.93em; white-space:nowrap; }
+a{ color:var(--accent); }
+a:focus-visible, summary:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
+
+/* 5ステップ */
+.steps{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:22px; }
+.steps > li{ margin:0; display:grid; grid-template-columns:44px 1fr; gap:12px; align-items:start; }
+.steps .num{ width:44px; height:44px; border-radius:50%; background:var(--navy); color:var(--navy-ink); font-size:22px; font-weight:700; display:flex; align-items:center; justify-content:center; font-variant-numeric:tabular-nums; }
+.steps .body{ min-width:0; }
+.steps .ttl{ font-size:19px; font-weight:700; line-height:1.45; margin:6px 0 4px; }
+.steps p{ margin:0 0 8px; }
+
+/* アプリ画面の絵（色はアプリの実物。暗い画面でも明るいまま） */
+.app{ background:#F1EFE8; border:1px solid #D9DDE4; border-radius:14px; padding:10px; margin-top:8px; color:#1a1a1a; font-size:14px; line-height:1.5; display:flex; flex-direction:column; gap:8px; max-width:420px; }
+.app .card{ background:#FFFFFF; border:1px solid #EEEEEE; border-radius:12px; padding:10px 12px; }
+.app .rw{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.app .rw + .rw{ margin-top:8px; padding-top:8px; border-top:1px solid #EEEEEE; }
+.app .nm{ font-weight:700; }
+.app .sm{ font-size:12px; color:#666666; }
+.app .lbl{ font-size:11.5px; color:#666666; margin-bottom:3px; }
+.app .inp{ border:1px solid #D9D9D9; border-radius:10px; padding:7px 8px; background:#FFFFFF; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.app .g2{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.app .chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.app .chip{ border:1px solid #BDD7EE; background:#FFFFFF; color:#1F3864; border-radius:16px; padding:4px 12px; font-size:13px; }
+.app .chip.on{ background:#1F3864; color:#FFFFFF; border-color:#1F3864; font-weight:700; }
+.app .jbs{ display:flex; gap:5px; }
+.app .jb{ width:34px; height:34px; border:1px solid #D9D9D9; border-radius:8px; background:#FFFFFF; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; }
+.app .jb.g{ background:#C6E0B4; border-color:#8DB56F; color:#375623; }
+.app .jb.r{ background:#F4B6B6; border-color:#D98A8A; color:#843C39; }
+.app .big{ background:#1F3864; color:#FFFFFF; border-radius:10px; padding:11px 10px; text-align:center; font-weight:700; font-size:15px; }
+.app .ph{ border:1px dashed #999999; border-radius:10px; padding:9px 10px; text-align:center; color:#555555; background:#FAFAFA; }
+.app .sbs{ display:flex; flex-wrap:wrap; gap:6px; }
+.app .sb{ border:1px solid #D9D9D9; border-radius:9px; padding:5px 12px; background:#FFFFFF; font-size:13.5px; }
+.app .sb.on{ background:#1F3864; color:#FFFFFF; border-color:#1F3864; font-weight:700; }
+.arrow{ text-align:center; color:var(--sub); font-size:13px; margin:2px 0; }
+
+/* 印 */
+.bd{ display:inline-block; border-radius:12px; padding:2px 10px; font-size:12.5px; font-weight:600; line-height:1.6; white-space:nowrap; }
+.bd.none{ background:#EEEEEE; color:#777777; }
+.bd.done{ background:#C6E0B4; color:#375623; }
+.bd.pend{ background:#FFE699; color:#7F6000; }
+.bd.warn{ background:#FFE699; color:#7F6000; }
+.bd.oth{ background:#DDEBF7; color:#1F3864; }
+.ed{ display:inline-block; margin-left:4px; font-size:11.5px; padding:2px 8px; border-radius:10px; border:1px solid #1F3864; background:#FFFFFF; color:#1F3864; font-weight:600; white-space:nowrap; }
+.sym{ display:inline-flex; width:30px; height:30px; border-radius:8px; align-items:center; justify-content:center; font-weight:700; border:1px solid var(--line); background:var(--bg); margin-right:4px; }
+.legend{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:6px 12px; margin:8px 0 4px; font-size:15px; }
+
+/* 約束 */
+.rules{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px; counter-reset:r; }
+.rules li{ counter-increment:r; margin:0; display:grid; grid-template-columns:32px 1fr; gap:10px; }
+.rules li::before{ content:counter(r); width:30px; height:30px; border-radius:8px; background:var(--warn-bg); border:1px solid var(--warn-line); color:var(--warn-ink); font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:2px; }
+.rules b{ display:block; font-size:17.5px; }
+.rules span{ color:var(--sub); font-size:15px; }
+
+/* 印の一覧 */
+.marks{ display:flex; flex-direction:column; }
+.marks .m{ display:grid; grid-template-columns:minmax(118px,auto) 1fr; gap:12px; align-items:start; padding:10px 0; border-bottom:1px solid var(--line); }
+.marks .m:last-child{ border-bottom:none; }
+.marks .m b{ display:block; }
+.marks .m span.d{ color:var(--sub); font-size:15px; }
+
+.note{ border:1px solid var(--warn-line); background:var(--warn-bg); color:var(--warn-ink); border-radius:10px; padding:10px 12px; font-size:15px; margin:10px 0 0; }
+
+/* 折りたたみ */
+details{ border:1px solid var(--line); border-radius:10px; background:var(--card); }
+details + details{ margin-top:8px; }
+summary{ cursor:pointer; padding:12px 14px; font-weight:700; font-size:16.5px; list-style:none; display:flex; justify-content:space-between; gap:10px; align-items:center; }
+summary::-webkit-details-marker{ display:none; }
+summary::after{ content:"＋"; color:var(--accent); font-weight:700; flex:0 0 auto; }
+details[open] > summary::after{ content:"－"; }
+details > .dd{ padding:0 14px 14px; }
+.tw{ overflow-x:auto; margin:8px 0 10px; }
+table{ border-collapse:collapse; width:100%; font-size:15px; min-width:380px; }
+th, td{ text-align:left; vertical-align:top; padding:8px 10px; border-bottom:1px solid var(--line); }
+th{ font-size:13px; color:var(--sub); font-weight:600; white-space:nowrap; }
+.two{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; }
+.box{ border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+.box h3{ margin-top:0; }
+footer{ max-width:680px; margin:0 auto; padding:0 16px 36px; color:var(--sub); font-size:13px; }
+</style>
+</head>
+<body>
+<header class="top"><div class="in">
+  <h1>機器点検アプリ 使い方</h1>
+  <p>はじめての人は、下の「5ステップ」だけ読めば点検できます。</p>
+</div></header>
+
+<main>
+
+<section id="steps">
+  <h2>5ステップで点検する</h2>
+  <ol class="steps">
+    <li><div class="num">1</div><div class="body">
+      <div class="ttl">現場をえらぶ</div>
+      <p>点検する現場の名前をタップします。</p>
+      <div class="app" aria-hidden="true">
+        <div class="card"><div class="rw"><div><div class="nm">サンプル食堂</div><div class="sm">機器 12台 ／ 年2回</div></div><div>›</div></div></div>
+      </div>
+    </div></li>
+
+    <li><div class="num">2</div><div class="body">
+      <div class="ttl">日付と自分の名前をたしかめる</div>
+      <p>点検日は自動で今日になります。点検者は、下に並んだ名前から自分の名前をタップします。2人で回るときは、2人ともタップします。</p>
+      <div class="app" aria-hidden="true">
+        <div class="card">
+          <div class="g2"><div><div class="lbl">点検日</div><div class="inp">今日 2026/11/09</div></div><div><div class="lbl">点検者</div><div class="inp">田中</div></div></div>
+          <div class="chips"><span class="chip on">田中</span><span class="chip">鈴木</span><span class="chip">佐藤</span></div>
+        </div>
+      </div>
+    </div></li>
+
+    <li><div class="num">3</div><div class="body">
+      <div class="ttl">機器をタップして、点検する</div>
+      <p>機器の名前をタップすると、点検の画面になります。することは3つです。</p>
+      <ol>
+        <li>項目ごとに、記号を1つタップする。</li>
+        <li>写真を撮る。</li>
+        <li>いちばん下で「総合判定」をえらぶ。</li>
+      </ol>
+      <div class="app" aria-hidden="true">
+        <div class="card">
+          <div class="rw"><div>ドア開閉</div><div class="jbs"><span class="jb g">○</span><span class="jb">△</span><span class="jb">◎</span><span class="jb">×</span><span class="jb">／</span></div></div>
+          <div class="rw"><div>パッキン状態</div><div class="jbs"><span class="jb">○</span><span class="jb">△</span><span class="jb">◎</span><span class="jb r">×</span><span class="jb">／</span></div></div>
+        </div>
+        <div class="card"><div class="ph">＋ 全体写真を撮影（複数可）</div></div>
+        <div class="card"><div class="lbl">総合判定・対応</div><div class="sbs"><span class="sb">良好</span><span class="sb on">要修理</span><span class="sb">要入替</span><span class="sb">経過観察</span></div></div>
+      </div>
+      <div class="legend">
+        <div><span class="sym">○</span>異常なし</div>
+        <div><span class="sym">△</span>清掃・調整</div>
+        <div><span class="sym">◎</span>要交換</div>
+        <div><span class="sym">×</span>故障・不良</div>
+        <div><span class="sym">／</span>対象外</div>
+      </div>
+      <p class="sub">早く済ませるコツ：上の <b class="k">全て ○ 異常なし</b> を押してから、悪いところだけ直します。</p>
+    </div></li>
+
+    <li><div class="num">4</div><div class="body">
+      <div class="ttl">「この機器を完了して戻る」を押す</div>
+      <p>一覧に戻り、その機器に「入力済」の印が付きます。続けて次の機器を点検します。</p>
+      <div class="app" aria-hidden="true">
+        <div class="big">この機器を完了して戻る</div>
+        <div class="arrow" style="color:#666666">↓ 一覧に戻ると</div>
+        <div class="card"><div class="rw"><div><div class="nm">1号機　冷蔵庫</div><div class="sm">冷機器 ／ ABC-123</div></div><span class="bd done">入力済</span></div></div>
+      </div>
+    </div></li>
+
+    <li><div class="num">5</div><div class="body">
+      <div class="ttl">最後に「この現場の点検を保存」を押す</div>
+      <p>画面のいちばん下にあります。押すと、入力済の機器がまとめて送られ、「保存済」に変わります。これで完了です。</p>
+      <div class="app" aria-hidden="true">
+        <div class="big">この現場の点検を保存</div>
+        <div class="arrow" style="color:#666666">↓ 送り終わると</div>
+        <div class="card"><div class="rw"><div><div class="nm">1号機　冷蔵庫</div><div class="sm">冷機器 ／ ABC-123</div></div><span class="bd done">保存済</span></div></div>
+      </div>
+      <p class="sub">途中で何回押してもかまいません。何台か終わるごとに押すと安心です。</p>
+    </div></li>
+  </ol>
+</section>
+
+<section id="rules">
+  <h2>3つの約束</h2>
+  <ol class="rules">
+    <li><div><b>記号を1つは付ける</b><span>写真を撮っただけでは「未」のままで、保存されません。</span></div></li>
+    <li><div><b>帰る前に、かならず保存を押す</b><span>押すまでは、自分の端末の中にしか残っていません。赤い帯で「未送信」と出ていたら、電波のある所で「今すぐ送信」を押します。</span></div></li>
+    <li><div><b>保存したあとで直すときは「✎ 修正」</b><span>機器をもう一度開いて保存し直すと、記録が2つになってしまいます。</span></div></li>
+  </ol>
+</section>
+
+<section id="marks">
+  <h2>一覧の印の見方</h2>
+  <div class="marks">
+    <div class="m"><div><span class="bd none">未</span></div><div><b>まだ点検していない</b><span class="d">これから点検します。</span></div></div>
+    <div class="m"><div><span class="bd done">入力済</span></div><div><b>入力した。まだ送っていない</b><span class="d">「この現場の点検を保存」を押します。</span></div></div>
+    <div class="m"><div><span class="bd done">保存済</span></div><div><b>送り終わった。完了</b><span class="d">名前と時刻が付いているのは、その人が保存した印です。</span></div></div>
+    <div class="m"><div><span class="bd warn">点検中 鈴木</span></div><div><b>ほかの人がいま点検している</b><span class="d">開かずに、別の機器を点検します。</span></div></div>
+    <div class="m"><div><span class="bd pend">送信待ち</span></div><div><b>保存を押したが、電波がなくて届いていない</b><span class="d">電波が戻ると自動で送られます。</span></div></div>
+  </div>
+</section>
+
+<section id="team">
+  <h2>2人以上で点検するとき</h2>
+  <p>1人1台の端末で、同じ現場を同時に点検できます。ほかの人の状況は、約45秒ごとに自分の一覧にも出ます。</p>
+  <ol class="rules">
+    <li><div><b>「点検中」「保存済」の機器は開かない</b><span>ほかの人が点検している、または終わっている機器です。</span></div></li>
+    <li><div><b>一覧に無い機器は、追加する前に声をかける</b><span>同じ機器を2人が別々に追加するのを防ぎます。</span></div></li>
+    <li><div><b>「続けますか？」と聞かれたら、まずキャンセル</b><span>ほかの人と重なっているときに出ます。相手に確かめてから進めます。</span></div></li>
+  </ol>
+  <p class="note">始める前に、全員の端末で画面左下の小さな番号（v73 など）が同じか見せ合ってください。違う人は、アプリを完全に閉じて開き直します。</p>
+</section>
+
+<section id="faq">
+  <h2>こんなときは</h2>
+  <details><summary>点検する機器が一覧に無い</summary><div class="dd">
+    <p>名前が少し違うだけで、すでに登録されていることがあります（例：「炊飯器」と「ガス炊飯器」）。まず一覧をよく見ます。</p>
+    <p>本当に無ければ、一覧の下の <b class="k">＋ 機器を追加</b> を押し、機器種別と機器名を入れて <b class="k">保存する</b> を押します。「よく似た機器があります」と出たら、同じ機器かどうか確かめ、同じなら <b>キャンセル</b> を押します。</p>
+  </div></details>
+  <details><summary>保存したあとで、まちがいに気づいた</summary><div class="dd">
+    <p>一覧の「保存済」の横にある <span class="ed">✎ 修正</span> を押します。直してから <b class="k">修正を保存（上書き）</b> を押します。</p>
+    <p>点検そのものを取り消すときは、同じ画面の <b class="k">この記録を取り消して「未」に戻す</b> を押します。</p>
+  </div></details>
+  <details><summary>保存したはずなのに「未」になっている</summary><div class="dd">
+    <p>点検日が今日になっているか見ます。別の日で保存していると、今日の一覧では「未」や <span class="bd oth">11/06 に保存済</span> と出ます。</p>
+    <p><span class="ed">✎ 修正</span> を押すと、点検日を直せます。</p>
+  </div></details>
+  <details><summary>赤い帯で「未送信」と出ている</summary><div class="dd">
+    <p>電波が弱く、まだ届いていません。電波のある所で、帯の <b class="k">今すぐ送信</b> を押します。入力した内容は端末に残っているので、消えません。</p>
+    <p>送り終わるまで、アプリを消したり、端末を初期化したりしないでください。</p>
+  </div></details>
+  <details><summary>電波がない場所で点検する</summary><div class="dd">
+    <p>行く前に、電波のある所で、現場をえらぶ画面の <b class="k">⬇ 全現場を端末に取り込む</b> を押しておきます。</p>
+    <p>電波がなくても、入力・写真・保存の操作はできます。保存を押すと「送信待ち」になり、電波が戻ると自動で送られます。</p>
+    <p>電波がない間は、ほかの人の「点検中」「保存済」が見えません。誰がどの機器を見るか、先に決めておきます。</p>
+  </div></details>
+  <details><summary>「点検日が今日ではありません」と赤字で出る</summary><div class="dd">
+    <p>点検日の欄をタップして「今日」をえらびます。保存のときに「今日の日付に直しますか？」と聞かれたら <b>OK</b> を押します。</p>
+  </div></details>
+  <details><summary>まちがえて機器を追加してしまった</summary><div class="dd">
+    <p>一覧の下の <b class="k">機器を編集</b> を押してから、その機器をタップし、<b class="k">この機器を削除</b> を押します。終わったら <b class="k">編集を終える</b> を押します。</p>
+    <p>ほかの人が点検している機器を消さないよう、消す前に声をかけます。</p>
+  </div></details>
+  <details><summary>入力の途中でアプリを閉じてしまった</summary><div class="dd">
+    <p>入力した内容は自動で端末に残っています。同じ現場を開くと「下書きがあります。復元しますか？」と聞かれるので <b>OK</b> を押します。</p>
+    <p>残るのは1つの現場ぶんだけです。保存を押す前に別の現場で入力を始めると、前の現場の分は消えます。</p>
+  </div></details>
+</section>
+
+<section id="more">
+  <h2>くわしい説明</h2>
+  <p class="sub">慣れてきたら読んでください。必要なところだけ開けます。</p>
+
+  <details><summary>点検の入力（便利なボタン・写真）</summary><div class="dd">
+    <div class="tw"><table><tbody>
+      <tr><td><b class="k">全て ○ 異常なし</b></td><td>全項目を ○ にします。</td></tr>
+      <tr><td><b class="k">前回と同じ</b></td><td>前回の判定を写します。前回の記録がある機器だけに出ます。</td></tr>
+      <tr><td><b class="k">不具合のみ</b></td><td>◎ と × の項目だけを表示します。もう一度押すと戻ります。</td></tr>
+      <tr><td><b class="k">✎ 機器名・型式・製番を修正</b></td><td>その場で機器の情報を直せます。</td></tr>
+      <tr><td><b class="k">⇄ 点検用紙に切り替える</b></td><td>ガス機器と電気機器を取り違えて登録したとき用です。</td></tr>
+    </tbody></table></div>
+    <ul>
+      <li>同じ記号をもう一度押すと、選択が外れます。</li>
+      <li>何も選ばなかった項目は、保存のときに「／ 対象外」になります。</li>
+      <li>項目の横の「前回 要交換」などは、前回の判定です。一覧の <span class="bd warn">前回 要対応</span> は、前回に要交換・故障があった機器です。</li>
+      <li>写真は「全体」と「不良箇所」の2種類で、何枚でも撮れます。写真の下の欄に、箇所の名前などを書けます。</li>
+      <li>「交換部品・不良箇所」の欄は、修理見積や入替提案の根拠になります。</li>
+      <li>総合判定のほかに、機器評価（A〜D）と対応区分もえらべます。</li>
+    </ul>
+  </div></details>
+
+  <details><summary>機器を追加する・直す・消す</summary><div class="dd">
+    <ul>
+      <li><b class="k">＋ 機器を追加</b>：機器種別と機器名は必須です。型式と製番も分かれば入れます。</li>
+      <li><b class="k">📷 銘板を撮って製番を読み取る</b>：銘板の写真から製番の候補を出します（電波が必要）。</li>
+      <li>「よく似た機器があります」は、型式か製番が同じ機器があるときに出ます。I と 1、O と 0 は同じ字として比べます。</li>
+      <li>追加した機器は、約45秒でほかの人の一覧にも出ます。</li>
+      <li><b class="k">機器を編集</b> → 機器をタップで、名前・型式・製番を直せます。</li>
+      <li><b class="k">この機器を削除</b> は一覧から外す操作です。保存済みの点検記録は消えず、点検表にも載ります。</li>
+      <li>電波のない場所で追加した機器は登録されません。電波が戻ってから「機器を編集」でその機器を開き、「保存する」を押し直します。</li>
+      <li>一覧の上の「年間点検回数」は、その現場の契約回数です。契約が変わったときだけ変えます。</li>
+    </ul>
+  </div></details>
+
+  <details><summary>保存したあとで直す・取り消す</summary><div class="dd">
+    <ol>
+      <li><span class="ed">✎ 修正</span> を押します。一覧の保存済みの機器の横、または出力画面の「この日の保存済み記録を見る・修正する」にあります。</li>
+      <li>判定、写真、総合判定、点検日を直します。写真の × は記録から外すだけで、写真そのものは消えません。「⇄ 別の機器へ」で、付けまちがえた写真を別の機器へ移せます。</li>
+      <li><b class="k">修正を保存（上書き）</b> を押します。やめるときは左上の「‹ 修正をやめて戻る」。</li>
+    </ol>
+    <p>取り消した記録は消えずに別の場所へ移り、写真も残ります。</p>
+    <p>同じ機器を同じ日に2回保存した場合、点検表には後から保存した方が載ります。</p>
+  </div></details>
+
+  <details><summary>点検表PDFを作る（まとめ役の人）</summary><div class="dd">
+    <ol>
+      <li>全員の保存が終わってから、1人が作ります。</li>
+      <li>一覧の下の <b class="k">📄 点検表PDF・写真PDFの出力画面</b> を開きます。保存した直後は自動でこの画面になります。</li>
+      <li>点検日をえらびます。その日に保存された全員ぶんが1冊になります。</li>
+      <li>点検者名を確かめます。用紙に載る名前で、ここで書き直せます。</li>
+      <li><b class="k">👁 プレビュー</b> で中身を見ます。表のマスをタップすると、判定・型番・製番・年式などをその場で直せます。直したら <b class="k">変更を保存</b>。</li>
+      <li><b class="k">📄 PDF作成</b> を押します。1〜2分かかるので、画面を閉じずに待ちます。「▶ PDFを開く」が出たら完成です。</li>
+    </ol>
+    <ul>
+      <li>年式は年だけをえらびます。分からないときは「不明」をえらびます。</li>
+      <li>できたPDFは、ドライブの「点検報告書PDF」にも保存されます。</li>
+    </ul>
+  </div></details>
+
+  <details><summary>2人以上で点検するときの細かいこと</summary><div class="dd">
+    <div class="tw"><table>
+      <thead><tr><th>出る文</th><th>意味</th><th>押すのは</th></tr></thead>
+      <tbody>
+        <tr><td>○○ さんが点検中の機器です。続けますか？</td><td>ほかの人がいま開いている</td><td>キャンセル</td></tr>
+        <tr><td>本日 ○○ さんが保存済みです。もう一度点検しますか？</td><td>すでに終わっている</td><td>キャンセル</td></tr>
+        <tr><td>よく似た機器がすでに一覧にあります</td><td>同じ型式か製番の機器がある</td><td>同じ機器ならキャンセル</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>「点検中」が相手の一覧に出るまで、最長で約45秒かかります。ほぼ同時に同じ機器を開くと、確認が出ないことがあります。</li>
+      <li>「点検中」は、機器の画面を閉じると消えます。</li>
+      <li>終わるときは、全員が保存を押し、一覧に「未」が残っていないか1人が確かめます。</li>
+    </ul>
+  </div></details>
+
+  <details><summary>管理者向け（端末の登録など）</summary><div class="dd">
+    <h3>端末を登録する</h3>
+    <ol>
+      <li>点検管理のスプレッドシートのメニュー「点検管理 → PWA：端末登録コードを発行」で、使う人の名前を入れてコードを出します。コードは6文字、48時間有効、1回限りです。</li>
+      <li>端末の Safari でアプリを開き、共有ボタンから「ホーム画面に追加」します。</li>
+      <li>ホーム画面のアイコンから開き、登録コードを入れて「登録する」を押します。</li>
+    </ol>
+    <p class="sub">Safari のタブのまま使うと、7日間使わないと端末の中のデータが消えます。かならずホーム画面のアイコンから開いてもらいます。</p>
+    <h3>困りごとの調べ方</h3>
+    <ul>
+      <li>登録した機器が出てこない：機器台帳の「状態」が撤去済になっていないか見ます。稼働中に戻すと一覧に出ます。</li>
+      <li>取り消した点検記録は「点検記録_取消」シートにあります。</li>
+      <li>「端末の登録が無効です」と出た端末は、新しい登録コードで登録し直します。</li>
+      <li>画面左下の番号をタップすると、通信の記録が出ます。</li>
+    </ul>
+  </div></details>
+</section>
+
+</main>
+<footer>2026年11月6日に、アプリの実際の画面で操作して確かめた内容です。PDF作成、端末登録、製番の読み取りは、これまでの運用での動きをもとに書いています。</footer>
+</body>
+</html>

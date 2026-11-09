@@ -123,6 +123,14 @@
   .gal .gi{ border:1px solid #ddd; border-radius:8px; overflow:hidden; background:#fff; }
   .gal .gi img{ width:100%; height:96px; object-fit:cover; display:block; }
   .gal .gi p{ margin:0; font-size:10px; padding:3px 5px; color:#444; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #manualBox{ position:fixed; inset:0; z-index:90; background:#fff; display:flex; flex-direction:column; }
+  #manualBox .mbar{ flex:0 0 auto; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:space-between; padding:8px 12px; }
+  #manualBox .mbar b{ font-size:15px; }
+  #manualBox .mbar button{ border:1px solid #BDD7EE; background:transparent; color:#fff; border-radius:10px; padding:8px 16px; font-size:14px; font-family:inherit; font-weight:600; }
+  #manualBox iframe{ flex:1 1 auto; width:100%; border:0; background:#fff; }
+  .helpbtn.tr{ position:absolute; right:12px; top:10px; margin:0; }
+  #scr-list header h1, #scr-list header p{ padding-right:86px; }
+  .helpbtn{ border:1px solid #BDD7EE; background:transparent; color:#fff; border-radius:14px; padding:5px 12px; font-size:12px; font-family:inherit; font-weight:600; margin-top:6px; }
   .hide{ display:none !important; }
   .bar{ position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid #ddd; padding:10px 14px; }
   .bar .inner{ max-width:520px; margin:0 auto; }
@@ -149,7 +157,7 @@
 <!-- ================= ① 現場選択 ================= -->
 <div id="saBar" class="hide">この画面はブラウザで開いています。共有ボタン →「ホーム画面に追加」で追加し、<b>ホーム画面のアイコンから開いて</b>ください。ブラウザのままだと7日間使わないと端末内のデータが消えます。</div>
 <div id="scr-enroll" class="hide">
-  <header><h1>端末を登録</h1><p>管理者から受け取った登録コードを入力してください</p></header>
+  <header><h1>端末を登録</h1><p>管理者から受け取った登録コードを入力してください</p><button type="button" class="helpbtn" onclick="openManual()">📖 使い方</button></header>
   <div class="wrap">
     <div class="sec">
       <label class="f">登録コード（6文字）</label>
@@ -160,7 +168,7 @@
   </div>
 </div>
 <div id="scr-site">
-  <header><h1>現場を選択</h1><p id="siteHeadSub">点検する現場を選んでください</p></header>
+  <header><h1>現場を選択</h1><p id="siteHeadSub">点検する現場を選んでください</p><button type="button" class="helpbtn" onclick="openManual()">📖 使い方（はじめての人はこちら）</button></header>
   <div class="wrap">
     <div class="sec">
       <input type="text" id="siteSearch" placeholder="現場名で検索">
@@ -180,6 +188,7 @@
     <button class="back" onclick="show('scr-site')">‹ 現場選択へ</button>
     <h1 id="listTitle">現場名</h1>
     <p id="listSub"></p>
+    <button type="button" class="helpbtn tr" onclick="openManual()">📖 使い方</button>
   </header>
   <div class="wrap">
     <div id="unsentBar" class="hide"><span id="unsentTxt"></span><button type="button" onclick="syncOutbox({manual:true})">今すぐ送信</button></div>
@@ -372,6 +381,8 @@
 <div id="pick" class="hide" onclick="if(event.target===this)this.classList.add('hide')"><div class="pbox"><h3 id="pickTitle"></h3><p id="pickSub" style="margin:0 0 8px;font-size:12px;color:#666"></p><div id="pickList"></div><button type="button" class="btn" style="margin-top:8px" onclick="$('pick').classList.add('hide')">閉じる</button></div></div>
 <div id="lightbox" class="hide" onclick="this.classList.add('hide')"><button class="lbx" type="button">×</button><img id="lbImg" alt=""><div class="lbcap" id="lbCap"></div></div>
 
+<div id="manualBox" class="hide"><div class="mbar"><b>📖 使い方</b><button type="button" onclick="closeManual()">✕ 閉じる</button></div><iframe id="manualFrame" title="使い方"></iframe></div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -409,10 +420,19 @@ function claimCurrent(release){ var r=srv(true); if(!r||cur<0||!S.site) return; 
   r.withSuccessHandler(function(){}).withFailureHandler(function(){}).claimUnit(S.site, unitKey(u), claimName(), !!release); }
 
 function $(id){return document.getElementById(id);}
+/* 使い方（説明書）。アプリの画面の上に重ねて開く＝入力中の内容はそのまま残る。PWA は同じ場所の manual.html（一度開けば電波なしでも見られる）、
+   スプレッドシート内のアプリは別タブで開く */
+var MANUAL_URL="https://tkskashitani.github.io/tks-app/tenken/manual.html";
+function openManual(){
+  if(isGas()){ window.open(MANUAL_URL,"_blank"); return; }
+  var f=$("manualFrame"); if(!f.getAttribute("src")) f.setAttribute("src","manual.html?v="+APP_VERSION);
+  $("manualBox").classList.remove("hide");
+}
+function closeManual(){ $("manualBox").classList.add("hide"); }
 function show(id){ ["scr-enroll","scr-site","scr-list","scr-unit","scr-edit","scr-done"].forEach(function(s){ $(s).classList.add("hide"); }); $(id).classList.remove("hide"); window.scrollTo(0,0); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.className="toast show"; setTimeout(function(){t.className="toast";},2600); }
 /* ================= 動作モード：Apps Script 内（google.script.run）／ PWA（GitHub Pages から fetch で受信口を呼ぶ） ================= */
-var APP_VERSION="v72";
+var APP_VERSION="v73";
 var API={ url:'https://script.google.com/macros/s/AKfycbxS28KCTMjXP1hNy1NhLt3eamjF3ZJ_NBhs8_jjqmwCJfRkUVfTfkVBBw-anlAa34U/exec', token:"", name:"" };
 try{ API.token=localStorage.getItem("tks_pwa_token")||""; API.name=localStorage.getItem("tks_pwa_name")||""; }catch(e){}
 function isGas(){ return (typeof google!=="undefined" && google.script && google.script.run) ? true : false; }
@@ -1639,6 +1659,7 @@ function doEnroll(){
     try{ localStorage.setItem("tks_pwa_token",API.token); localStorage.setItem("tks_pwa_name",API.name); }catch(e){}
     try{ history.replaceState(null,"",location.pathname); }catch(e){}
     toast("登録しました："+API.name); $("iinspector").value=$("iinspector").value||API.name; show("scr-site"); boot();
+    try{ if(!localStorage.getItem("tks_manual_seen")){ localStorage.setItem("tks_manual_seen","1"); setTimeout(openManual,800); } }catch(e){}
   }).catch(function(e){ busy(-1); $("enrollMsg").textContent="登録できませんでした："+((e&&e.message)||e); });
 }
 
